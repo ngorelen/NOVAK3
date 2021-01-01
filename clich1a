@@ -1,0 +1,5 @@
+c
+cc...  use parameters for spline interpolation
+	include 'gridparam'	
+      parameter(nogrid=nmbrgrd)
+c

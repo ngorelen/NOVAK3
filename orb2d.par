@@ -1,0 +1,14 @@
+c
+      dimension ddpsio(nn,nts),ppsi(nn),rr(nn,nts),zz(nn,nts)
+     $ ,grthsq2d(nn,nts),xjacob2d(nn,nts),b2d(nn,nts),dzpsi(nn,nts)
+     $ ,dpsio(nn,nts),wdo(nn,nts,4),anom(nn,nts),bnom(nn,nts)
+     $ ,cnom(nn,nts),dnom(nn,nts),rg2d(nn),qoo(nn),aint1(nn,nts)
+     $ ,ajnt(nn,nts),bjnt(nn,nts),sqrajnt(nn,nts),asqrajnt(nn,nts)
+     $ ,grpssq2d(nn,nts),shear2d(nn,nts)
+      common/orb2dsc/rax,r0,jdj,jd0,jzmax,jzmin,jrmax,jrmin
+     $ ,sqrpsi0,psi0,zmz02,rmr02,zmrm2
+      common/orb2dar/ppsi,ddpsio,rr,zz,grthsq2d,xjacob2d,b2d,dzpsi
+     $ ,dpsio,wdo,anom,bnom,cnom,dnom,rg2d,qoo,aint1,ajnt,bjnt
+     $ ,sqrajnt,asqrajnt,grpssq2d,shear2d
+      dimension wdchng(lam,nn,2),wdcchng(lam,nn,2),alchng(lam,nn,2)
+      common/chn/wdchng,wdcchng,alchng

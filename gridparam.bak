@@ -1,0 +1,5 @@
+c NSTX eqb1
+         	parameter(nmbrgrd=201,mnths0=256,ndat=50)
+ckg this setup is often used by G.Kramer's version of NOVA
+c         	parameter(nmbrgrd=151,mnths0=128,ndat=20)
+c         	parameter(nmbrgrd=381,mnths0=256,ndat=20)

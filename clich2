@@ -1,0 +1,105 @@
+
+      dimension qprf(nn),gprf(nn),pprf(nn),rhoprf(nn),rgrid(nn)
+     &,rgsq(nn),rhopprf(nn),bsqav(nn),epsg(nn),amu(nn)
+     &,hmin(nn),hmax(nn),ppprf(nn),delk(nn),betah(nn),volr(nn)
+     &,bsqinv(nn)
+      dimension
+     .grpssq(nts), xsq(nts), grthsq(nts), grpsth(nts),
+     .gptdth(nts), xsqdps(nts), gpsdth(nts), xsqdth(nts),
+     .xjacob(nts), xjprym(nts), delta(nts), qdelp(nts)
+      dimension
+     .xinf(nts),zinf(nts),
+     .xa(nts), za(nts), xtheta(nts), ztheta(nts),
+     .xpsi(nts), zpsi(nts)
+      dimension
+     .xsdpxs(nts), xsdtxs(nts), gptgpp(nts), gpdtgp(nts),
+     .gptdtgp(nts), xjsq(nts), xjdtxj(nts), xjprxj(nts), bf(nts),
+     .bsq(nts), bsdtbs(nts), curvs(nts), sigma(nts), grgrpp(nts),
+     .shear(nts), curvn(nts), qdelt(nts)
+      dimension
+     .as(nts), ad1(nts), ad2(nts), ad3(nts), ap(nts), at(nts),
+     .ss1(nts), ss2(nts), ss3(nts), sd(nts), sp1(nts),
+     .sp2(nts),sp3(nts),st1(nts),st2(nts),st2i(nts),st3(nts),
+     .gp0(nts), gp0i(nts), gp1(nts),
+     .gt0(nts),gt1(nts),gt1i(nts),gt2(nts),gt3(nts),gs(nts),gd(nts),
+     .dt(nts), dti(nts), dt1(nts), dp(nts), ds1(nts), ds2(nts), dd(nts),
+     .wi(nts), wii(nts), wi1(nts), wi2(nts),tboun(nts)
+     .,tcirc(nts),dtc(nts),dtb(nts)
+     .,deltc(nts),rx(nts),drx(nts),fwb(nts),fwk(nts),grpp(nts)
+      complex
+     .cas(jt,jt), cad1(jt,jt), cap(jt,jt), cat(jt,jt),
+     .css2(jt,jt), csd(jt,jt), csp(jt,jt), cst(jt,jt),
+     .cst1(jt,jt), cgt1(mt,mt),
+     .cad2(jt,jt), css1(jt,jt), cmsd(jt2,jt2), cmtp(jt2,jt2),
+     .cgt0(mt,mt),
+     .cgp(mt,mt), cgt(mt,mt), cgs(mt,mt), cgd(mt,mt),
+     .cdt(mt,mt), cdp(mt,mt), cds(mt,mt), cdd(mt,mt)
+      dimension rad2(jt,jt), rss1(jt,jt), rmsd(jt2,jt2),
+     .rmtp(jt2,jt2), rgt0(mt,mt),
+     .rgp(mt,mt), rgt(mt,mt), rgs(mt,mt), rgd(mt,mt),
+     .rdt(mt,mt), rdp(mt,mt), rds(mt,mt), rdd(mt,mt)
+c
+      common / const / zero, one, two, four, pi, pi2, twopi
+      common / deflt / nsrf, mth1, mth2,
+     .           dth, tgrid(nts), mh, dpsi, psiv, psif, psitot
+      common/lengdre/ xali(lam), wali(lam)
+     .     ,xalic(lamc), walic(lamc)
+      common/pitch2d/gal2d(lam,nn),tkbou2d(lam,nn)
+     .              ,galc2d(lamc,nn),tkcir2d(lamc,nn)
+      common/eq2d/bf2d(nts,nn),xj2d(nts,nn)
+c
+      common / chnel / iodat,iomode,iomap1,ioequ1,mp0,mp1,mp2,iotty
+c
+      integer*8 ntitle, nx, nz, nosurf1, mth, ngrid, nnj, mmj
+      common / equin / ntitle(20), dat, nx, nz, nosurf1, mth, ngrid,
+     .                alx, alz, xzero, xma, r, p0, gp00,
+     .                psimin, psilim, psipls,
+     .                betag, betap, upsiln, nnj, mmj
+cor
+      common / eqmap / f,fp, p,pp, q0,q1,q,qp, g0,g,gp, s, fs2, psbg
+      common / equil / g2, ggp, q02, rg, r2g2, gamma, gammapc
+     .  ,rrg,rho,oma2,pcore,pcorep,phot,photp,qscale,gconst
+     .   , betahav, dkeng
+     .,qprf,gprf,pprf,rhoprf,rgrid,rgsq,rhopprf,bsqav
+     .,epsg,amu ,hmin,hmax,ppprf,delk,betah, volr,bsqinv
+c
+      common / mapoin / grpssq, xsq, grthsq, grpsth, gptdth, xsqdps,
+     .                  gpsdth, xsqdth, xjacob, xjprym, delta, qdelp
+      common / mapdin / xinf, zinf, xa, za, xtheta, ztheta, xpsi, zpsi
+      common / surf1 / xsdpxs, xsdtxs, gptgpp, gpdtgp, gptdtgp,
+     .                  xjsq, xjdtxj, xjprxj, bf, bsq, bsdtbs, curvs,
+     .                  sigma, grgrpp, shear, curvn, qdelt
+c
+      common / surf2 / as, ad1, ad2, ad3, ap, at,
+     .     ss1, ss2, ss3, sd, sp1, sp2, sp3, st1, st2, st2i, st3,
+     .     grp, gp0, gp0i, gp1, gt0, gt1, gt1i, gt2, gt3, gs, gd,
+     .          dt, dti, dt1, dp, ds1, ds2, dd, wi, wii, wi1, wi2
+     .      ,tboun,tcirc,dtc,dtb,deltc,rx,drx,fwb,fwk,grpp
+      common / matr1 / cas, cad1, cap, cat,
+     .                 css2, csd, csp, cst, cst1, cgt1
+      common / matr2 / cad2, css1, cmsd, cmtp, cgt0,
+     .                 cgp, cgt, cgs, cgd, cdt, cdp, cds, cdd
+      common / matr3 / rad2, rss1, rmsd, rmtp, rgt0,
+     .                 rgp, rgt, rgs, rgd, rdt, rdp, rds, rdd
+      common/abe/abpe(lam,mt,nn,jb,6)
+      common/ineq/rbce(lam,mt,jb,3),rbcec(lamc,mt,jcc,3)
+     .,wd(lam),tkbou(lam),gal(lam),salm(lam)
+     .,wdc(lamc),tkcir(lamc),galc(lamc),salmc(lamc)
+     .,tdbou(lam),wds(lam)
+      common/colli/rbcee(lam,mt,3)
+      common/colli2/rbcee2(100),sst12(100)
+      common/rplot/rshear(nn),rcurvn(nn),rsigma(nn),rgrgrpp(nn)
+     .,rxsdpxs(nn),rgptdtgp(nn),rxjsq(nn),rxjprxj(nn)
+     .,rcurvs(nn),rxjdtxj(nn),rgpdtgp(nn),rgptgpp(nn),rqp(nn)
+     .,agptdtgp(nn),agrgrpp(nn),agptdth(nn)
+c
+      common/stabin/ntor,lmin,lmax,kmin,ktot,njg,mjx,nnx,igrid,xr
+     &,ltot,ltotsq,ltots2,ltots8
+      common/extra/nosurf
+      character tip*1
+      common/parm1/np,npc,ipbmax,ipcmin,ipcmax,idet
+     &,nnsurf,klamb,klamc,ishft,tip
+      common/distr/chidelt(6)
+c
+c
+c

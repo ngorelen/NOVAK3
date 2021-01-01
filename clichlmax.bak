@@ -1,0 +1,47 @@
+ccc	if you change any parameter here you should compile 
+ccc	following programs: mhdidin.f, mhdidst.f, contx.f(with maximum n)
+c these parameteres should be taken for continium
+c       parameter(minm_1=-1,maxm_1=100,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=4	
+c       parameter(minm_1=-1,maxm_1=60,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=3
+c	parameter(minm_1=-1,maxm_1=48,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=5
+c	parameter(minm_1=-1,maxm_1=70,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=1
+c	parameter(minm_1=-1,maxm_1=17,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=7
+c	parameter(minm_1=0,maxm_1=100,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=2
+c	parameter(minm_1=-1,maxm_1=20,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=1
+c	parameter(minm_1=-1,maxm_1=17,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c ntor=10 ITER
+c	parameter(minm_1=-1,maxm_1=35,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c	MAST q_0= 0.85 q_edge= 6.6
+c	parameter(minm_1=-1,maxm_1=30,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c  ntor=7 q_0=0.907 q_1=5.60318 TFTR
+c	parameter(minm_1=-1,maxm_1=45,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c  ntor=1 q_0=2.83 q_1=12.07 NSTX
+c	parameter(minm_1=-1,maxm_1=12,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c  ntor=1-5 q_0=2.83 q_1=12.07 NSTX
+c	parameter(minm_1=-1,maxm_1=36,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c  ntor=1 qa=5. JET
+c	parameter(minm_1=-3,maxm_1=10,imode_tot=maxm_1-minm_1+1,
+c     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)
+c generic nstx with large number of harmonics must be maxm_1 >= q_a*n
+	parameter(minm_1=-3,maxm_1=20,imode_tot=maxm_1-minm_1+1,
+     *	jmin_1=minm_1-2,jmax_1=maxm_1+2,jmode_tot=jmax_1-jmin_1+1)

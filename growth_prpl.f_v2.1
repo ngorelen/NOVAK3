@@ -1,0 +1,1513 @@
+c**********************************************************************
+c This subroutine is modified from the original growth to allow the
+c calculation of the principal part of the dW_k
+      subroutine growth_prpl(ai,aeqv,b0oo,deltk,dfalp,dfalpdv,dpga
+     & ,dintgr,fo,hnub,hwb1,mt,mtl,nnres,eps,epsp,gamkom,gamkomflr
+     &     ,iav,im1,iter,immax,isrfmax,nts,ntgr,nosurf,nroot,omkom,
+     &     omkomflr,p0ga,psiavres,ppsi,psitot,rr,rfres,rma,rmi,symm
+     &     ,u_normcql3d,vi,vres,scalvavf,tip,xfow,zi)
+c Thie choice of grid is for M=1 mode stability analysis
+      include 'orbit.grid'
+c      parameter (nv=20,nmu=40,npf=70)
+c      parameter (nv=30,nmu=70,npf=99)
+c      parameter (nv=30,nmu=70,npf=75)
+c      parameter (nv=40,nmu=120,npf=120)
+      parameter (iav1=6,iberk=30,mt_m1=105,mtl_m1=mt_m1+5)
+      dimension qpf(npf),pmu(nmu),v(nv),wvpr(nv,nmu,npf,2),fo(iav,mt,
+     &     -mtl:mtl,nnres),wqvpr(nv,nmu,npf,2),wd(nv,nmu,npf,2),wb(nv
+     &     ,nmu,npf,2),wres(nv),vres(nnres,-mtl:mtl),gamintpfi(npf,6,2)
+     &     ,gamintmu(nmu,8),rf(2,6,nmu,nv),vplot(nv,nmu,4),ind(nv)
+      dimension rfres(2,6,nnres,-mtl:mtl),gamkomis(6,2),psiav(nv,nmu
+     &     ,npf,2),gtrap(npf,6),dintgr(-mtl:mtl,nnres,4,2),gtrap1(6)
+     &     ,nroot(-mtl:mtl),dfalp(nnres,-mtl:mtl),dfalpdv(nnres,-mtl:mtl
+     &     ),aeqv(nnres,-mtl:mtl),psiavres(2,nnres,-mtl:mtl)
+      dimension dbob(iberk),gadogal(iberk),gberkintmu(nmu,iberk,4)
+     &     ,gberkintpfi(npf,iberk,8),gberkis(iberk,8),hwb1(nnres,
+     &     -mtl:mtl),hnub(nnres,-mtl:mtl)
+     &     ,ppsi(nosurf),rr(nosurf,nts)
+c stuff for m1 study
+      dimension rf_m1(2,6,nv),fo_m1(iav1,nv,mt_m1,-mtl_m1:mtl_m1)
+     &     ,dwv_m1(iav1,-mt_m1:mt_m1),dfalpdv_m1(nv,-mtl_m1:mtl_m1)
+     &     ,omintmu(nmu,2),omintpfi(npf,2),omkomis(2),i_m1(nv,
+     &     -mtl_m1:mtl_m1),wres_m1(nv,-mtl_m1:mtl_m1)
+      common/wdr/alpha,b0ax,psedge,vioo,sigvpr
+      common/cgm/b0,brz,imtae0,pmui,qpfi,z0
+      save rf
+ckg_sat amplitude saturation stuff
+      real*8 vres_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     fdist_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     gam_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     vgam_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     dwv_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     dwp_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     bgy_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
+     &     q_sat(npf,nmu,-mtl_m1:mtl_m1,2,2)
+ckg_plot the distribution function
+      dimension fplot(npf,nmu,2),fplot1(nmu,nv,2),fplot2(nmu,2,nv)
+     &     ,gc2(nmu,2,nv)
+      character*40 labtitle
+c_________graph\/staff
+      character col(npf),pat(npf),tip*1,fow*11,filename*11
+      complex wtae
+cnng12
+      character c46*46/'ls'/,c246*50/'ls'/,cgw*48
+      data omkomis/2*0./
+      if(mt_m1.lt.mt)write(*,*)
+     &     'warning: check your dimension of MT in GROWTH'
+      write(fow(5:8),'(f4.2)') xfow
+      do i=1,npf
+         col(i)='white'
+         pat(i)='solid'
+      enddo
+c---------graph/\temporary
+c========== definitions for integrations
+      psma=bfo(b,b0,(rmi+rma)/2.,r0,0.,z0)
+      psma=psio(dpsi,ddpsi,dzpsi,rma,r0,z0,z0,am)
+      psmi=psio(dpsi,ddpsi,dzpsi,rmi,r0,z0,z0,am)
+      call eigenmod(b0oo,b0,dbobmax,dbobmaxs,dnonmax,min,min_f,max,max_f
+     &     ,ntae,scalvavf,valfv,wtae,deltk,ximax)
+      write(*,*) ' max of Xi[m],dB/B,dB/B_sin and dn/n are',ximax
+     &     ,dbobmax,dbobmaxs,dnonmax
+      print *,'growth_prpl',u_normcql3d
+      call rescondif(ai,alpha,b0,b0oo,eps,epsp,im1,iter,ntgr
+     &     ,psiav,psitot,psma,psmi,pmu,nmu,qpf,npf,r0,rf,rma
+     &     ,rmi,symm,t0,tip,u_normcql3d,valfv,v,nv,vi,z0,zi,wvpr,wqvpr
+     &     ,wd,wb,xfow,xhp)
+c
+      call eigenmod(b0oo,b0,dbobmax,dbobmaxs,dnonmax,min,min_f,max,max_f
+     &     ,ntae,scalvavf,valfv,wtae,deltk,ximax)
+ckg convert the frequency to the shifted by the cyclotron frequency
+ckg by multiplying by -3.7, so from -415 kHz it is changed to 1545kHz
+c      wtae=-wtae*(3.7)
+      call berkgrid(dbob,iberk,dbobmax,ximax)
+      write(*,*) 'm range ',min,max,'ntae ',ntae,'Signif.m`s are',min_f
+     &     ,max_f
+      write(*,*) 'om= ',wtae,'f= ',real(wtae)/2./3
+     &     .1415926
+      write(*,*) ' Delta K= ',deltk,' Valfven=',valfv
+      write(*,*) ' Va/Valfv=',vi/valfv,' xFOW=',xfow,' Type=',tip
+      write(*,*) ' Alpha`s A,Z,V_0', ai,zi,vi
+      write(*,*) 'B_0 (T)',b0*b0oo,' R_ax',r0,' Z_ax',z0
+      write(*,*) 'Psi_edge=',psitot
+      b0ax=b0
+      psedge=psma
+      vioo=vi
+c  Here gam is the parameter so that the df is
+c  f~/(v^3 + v*^3)^(2-gam) and gam=1 corresponds to the slowing down df.
+      gam=1.
+      gamkom=16.18282*ai**2*vi**4*sign(abs(wtae),real(wtae))/xhp/zi
+     &     /b0oo/b0/4./deltk/r0
+      gamkomhlp=gamkom
+      omstari=real(ntae)*xhp*vi*10.
+      omstar=omstari/sign(abs(wtae),real(wtae))
+      write(*,*) 'omstar=',omstar
+ckg Note that it is assumed negative for frequency to be in the
+c      resonance with particles
+c
+c      if(im1.eq.2) wtae=wtae-0.31415926-0.16
+c0.08
+c This one is for JT60 27969 assuming the frequency of fishbone like
+c perturbations were 30kHz
+c      if(im1.eq.2) wtae=wtae-0.1885
+      w_rotres=0.
+      call omstari_calc(ai,omstari,vi,zi)
+      if(im1.ne.0) then
+c         wtae=(0.,0.)
+         w_rot0=0.
+         w_rot1=0.
+ckg         call omstari_calc(ai,omstari,vi,zi)
+c         wtae=wtae-omstari
+c         wtae=wtae-omstari/2
+c         wtae=wtae-0.1
+c this determines the rotation from transp run
+         p_rot=1.
+cben         call readrot(w_rot0,w_rot1,p_rot,ierr)
+c this key switch off the rotation definition from transp
+         ierr=0
+         write(*,*) 'TRANSP given rotation is',w_rot0,w_rot1,p_rot
+         if(ierr.eq.1)then
+c            w_rot0=0.23
+c            w_rot1=0.03
+c           w_rot0=w_rot0*(-1.4)
+c           w_rot1=w_rot1*(-1.4)
+c           p_rot=2.
+            w_rot0=0.06
+            w_rot1=0.01
+c rotation frequencies are read in my units 10^6 rad/sec^-1
+         endif
+         call psi_res(w_rotres)
+         w_rotres=w_rot0-w_rotres**p_rot*(w_rot0-w_rot1)
+         write(*,*) 'To include rotation use w_rot0=',w_rot0
+     &        ,' w_rot1=',w_rot1,' w_rotres=',w_rotres
+      endif
+      write(*,*) 'om= ',wtae,'f= ',real(wtae)/2./3.1415926
+      is1=1
+      ipf1=1
+      write(fow(1:4),'(f4.2)') scalvavf
+      if(ai.eq.4.)then
+         filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
+     &        /'a'
+         ihsps=3
+      else if(ai.eq.1.)then
+         filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
+     &        /'h'
+         ihsps=3
+      else if(ai.eq.2.)then
+         filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
+     &        /'d'
+         ihsps=1
+      else if(ai.eq.3.)then
+         filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
+     &        /'t'
+         ihsps=2
+      else 
+         filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
+     &        /'?'
+         ihsps=3
+         write(*,*)
+     &        '?????????warning:  Your particle weight is uncommon'
+      endif
+      open(unit=18,err=10,file=filename,status='unknown')
+      read(18,*,err=10,end=10) is1,ipf1
+      read(18,*,err=10,end=10) gamkomis,omkomis,gtrap1
+      if(is1.eq.1)call zero(omkomis(1),2)
+      read(18,*,err=10,end=10) gamintpfi
+      read(18,*,err=10,end=10) omintpfi
+      read(18,*,err=10,end=10) gtrap
+      read(18,*,err=10,end=10) gberkintpfi
+      read(18,*,err=10,end=10) gberkis
+      write(*,*) 'Using old file ',filename
+ 10   continue
+      close(18)
+      call zero(dintgr(-mtl,1,1,1),nnres*(2*mtl+1)*8)
+c
+      itest=0
+c      itest=1
+      if(itest.eq.1)then
+c         symm=1.
+         is1t=1
+         is2t=is1t
+c
+         ipf1t=27
+c         ipf1t=indx(qpf(1),npf,1.)
+         ipf2t=ipf1t
+c         ipf2t=npf
+c define mu index for test/debug run
+         imu1t=1
+         imu2t=nmu
+c single out one pitch angle for debugging
+c         imu1t=83
+c         imu2t=imu1t
+c To test/debug for each bounce harmonics:
+c make it =10 to see all the resonance condition or =1 for simpler
+c output or it = 20 for m1 stability
+c no extra output if =30 just run with limited l numbers
+         itestil=0
+c         il1t=-5
+c         il2t=-5
+         il1t=-mtl
+         il2t=mtl
+c To test for each mode harmonics:
+         itestm=0
+c allows to debug for these pol. harmonics range, which are the
+c poloidal numbers, which differs from Max M value printed!!!!
+         im1t=7
+         im2t=im1t
+         im1t=min_f
+         im2t=max_f
+         print *,'DEBUG run with Pfi index from/to',ipf1t,ipf2t
+         print *,'               Mu  index from/to',imu1t,imu2t
+         print *,'  bounce harmonic number from/to',il1t,il2t
+         print *,'     included pol. harm. from/to',im1t,im2t
+      else
+         im1t=min_f
+         im2t=max_f
+         il1t=-mtl
+         il2t=mtl
+         is1t=is1
+         is2t=2
+         ipf1t=ipf1
+         ipf2t=npf
+         imu1t=1
+         imu2t=nmu
+         itestil=0
+         itestm=0
+         if(im1.eq.1)is2t=1
+      endif
+      if(tip.eq.'c'.or.tip.eq.'r')then
+         is1t=1
+         is2t=1
+      endif
+      do is=is1t,is2t
+         sigm=1.
+         if(is.eq.2) sigm=-1.
+ctem
+         if(im1.eq.1.and.itest.ne.1)ipf2t=npf*3/4
+c         if(tip.eq.'r')then
+c            ipf1t=npf*3/7.
+c            ipf2t=npf*5/7.
+c         endif
+         do ipf=ipf1t,ipf2t
+            imlmax=0
+            imtamax=0
+            qpfi=qpf(ipf)
+            do ib=1,iberk
+               gberkintpfi(ipf,ib,2*is-1)=0.
+               gberkintpfi(ipf,ib,2*is)=0.
+               gberkintpfi(ipf,ib,4+is)=0.
+               gberkintpfi(ipf,ib,6+is)=0.
+            enddo
+            gamintpfi(ipf,4,is)=0.
+            gamintpfi(ipf,3,is)=0.
+            omintpfi(ipf,1)=0.
+            omintpfi(ipf,2)=0.
+            if(is.eq.1) then
+               gtrap(ipf,3)=0.
+               gtrap(ipf,4)=0.
+            endif
+c
+            deltqx=sigm*(qpf(npf)-qpf(1)-1.)/2.
+            ilmax=-1000
+            ilmin=1000
+            imu_m1=0
+            do imu=imu1t,imu2t
+               pmui=pmu(imu)
+               do ib=1,iberk
+                  gberkintmu(imu,ib,1)=0.
+                  gberkintmu(imu,ib,2)=0.
+                  gberkintmu(imu,ib,3)=0.
+                  gberkintmu(imu,ib,4)=0.
+               enddo
+               do ki=1,8
+                  gamintmu(imu,ki)=0.
+                  if(ki.lt.3)omintmu(imu,ki)=0.
+               enddo
+               call zero(aeqv,nnres*(mtl*2+1))
+               if(pmui.gt.rmi.and.sigm.gt.0.) then
+                  ml1=1
+                  kl1=0
+               else
+                  ml1=abs(ntae)
+                  kl1=1
+               endif
+               if(imu.eq.imu1t.or.imtamax.eq.0)then
+                  min1=min_f
+                  max1=max_f
+               else
+c
+                  deltqx=amax1(qpfi+deltqx*(1.-pmui/r0),0.)
+                  deltqx=amin1(deltqx,1.)*(.6+pmui/r0)/1.6
+                  mdelt=(abs(ntae)+deltqx**2
+     $                 *(abs(max))*1.)
+                  mdelt=min0(mdelt,int(2*abs(ntae)))
+                  mdelt=max0(2,mdelt)
+                  if(mod(imu,2).ne.1)then
+                     min1=max0(imtamax-2,min_f)
+                     max1=min0(imtamax+3,max_f)
+c                     min1=max0(imtamax-6,min_f)
+c                     max1=min0(imtamax+5,max_f)
+                  else
+                     min1=max0(imtamax-mdelt,min_f)
+                     max1=min0(imtamax+mdelt,max_f)
+                  endif
+               endif
+c
+c               if(itest.eq.1)then
+c                  min1=min_f
+c                  max1=max_f
+c               endif
+               if(itestm.eq.1)then
+                  min1=im1t
+                  max1=min0(im2t,max_f)
+               endif
+               if(imu.eq.imu1t.or.(pmui.gt.rmi.and.sigm.gt.0.).or.imlmax
+     &              .eq.0)then
+                  ml2=-ml1*sigm+5
+                  if(ml2.lt.imlmax+5) ml2=imlmax+5
+                  ml10=-ml1*(1-(-sigm+1)/2)*sigm-2
+                  il=min0(abs(ntae),10)
+                  if(ml10.gt.imlmax-il)ml10= imlmax-il
+c     $                 *sign(1.,real(ntae))
+                  if(im1.eq.2)then
+                     if(mod(imu,3).eq.0) then
+                        ml2=mtl
+                        ml10=-mtl
+                     else
+                        ml2=imlmax
+                        ml10=ml2
+                     endif
+                  endif
+               else
+c                  ml2=imlmax+5
+c                  ml10=imlmax-abs(ntae)*2-2
+                  ml2=imlmax+5
+                  ml10=min0(abs(ntae)*2,10)
+                  ml10=max0(imlmax-ml10,ilmin)
+                  if(im1.eq.2)then
+                     if(mod(imu-1,5).eq.0) then
+                        ml2=mtl
+                        ml10=-mtl
+                     else
+                        ml2=imlmax
+                        ml10=ml2
+                     endif
+                  endif
+               endif
+c               if(itest.eq.1)then
+c                  min1=min_f
+c                  max1=max_f
+c               endif
+               if(imu.gt.imu1t.and.mod(imu,5).eq.0)then
+                  ml2=min0(mtl,ilmax)
+                  ml10=max0(-mtl,ilmin)
+               endif
+               if(itestil.eq.1.or.itestil.eq.10.or.itestil.eq.30)then
+                  ml10=il1t
+                  ml2=il2t
+               endif
+               if(ml2.gt.mtl)ml2=mtl
+               if(ml10.lt.-mtl)ml10=-mtl
+c     tem               do imtae=3,4
+               call zero(dfalpdv_m1(1,-mtl_m1),nv*(2*mtl_m1+1))
+               ilmax=-1000
+               ilmin=1000
+c imtae is real poloidal mode number and imtae0 is index of the arrays
+               do imtae=min1,max1
+                  imtae0=imtae+1-min
+c     hereafter the summ over the bounce harmonics
+c
+c     m1 here changes are made for M1
+                  if(im1.eq.1) then
+                     ml10=0
+                     ml2=0
+                  endif
+                  if(itest.eq.1.and.itestil.eq.0)then
+                     ml2=mtl
+                     ml10=-mtl
+                  endif
+ckg for test purposes to include all the harmonics, more computation
+c                     ml2=mtl
+c                     ml10=-mtl
+                  do il=ml10,ml2
+                     if(imtae.eq.min1)then
+                        nres=0
+                        ires0=0
+                        if(itestil.eq.10.or.itestil.eq.20)write(*,*)
+     &                    ' V, <V_||>, W_d, W_b, W_res,qav,psiav,m,l'
+     &                       ,imtae0,il
+                        do iv=1,nv
+                           if(ires0.eq.0.and.abs(wb(iv,imu,ipf,is))
+     $                          .gt.1.e-10) then
+                              ires0=iv
+                           endif
+                           if(ires0.ne.0.and.abs(wb(iv,imu,ipf,is))
+     $                          .gt.1.e-10) nres=nres+1
+                           q_av=q_psi(psiav(iv,imu,ipf,is))
+c      a0=2.5
+c      a1=.3
+c         ppsi(i)=a0-ppsi(i)*(a0-a1)
+                           wres(iv)=-ntae*(wqvpr(iv,imu,ipf,is)+wd(iv
+     &                          ,imu,ipf,is))+real(wtae)
+                           if(il.eq.ml10.and.abs(wb(iv,imu,ipf,is))
+     $                          .gt.1.e-10)then
+                              iltest=-int(wres(iv)/wb(iv
+     &                             ,imu,ipf,is))
+                              ilmax=max0(ilmax,iltest)
+                              ilmin=min0(ilmin,iltest)
+                           endif
+                           wres(iv)=wres(iv)+il*wb(iv,imu,ipf,is)
+                           if(im1.ne.0)then
+                              wres(iv)=wres(iv)-w_rotres+(w_rot0
+     &                             -abs(psiav(iv,imu,ipf,is))**p_rot
+     &                             *(w_rot0-w_rot1))
+                              wres_m1(iv,il)=wres(iv)
+                           endif
+                           if(itestil.eq.10.or.itestil.eq.20)then
+                              write(*,'(7f11.5)') v(iv),wqvpr(iv,imu,ipf
+     &                             ,is),wd(iv,imu,ipf,is),wb(iv,imu,ipf
+     &                             ,is),wres(iv),q_av,psiav(iv,imu,ipf
+     &                             ,is)
+                           endif
+                        enddo
+                        nroot(il)=0
+c     defining the resonance points
+                        if(nres.gt.1) then
+                           call roots(wres(ires0),v(ires0),ind(1),nres
+     $                          ,0.,eps,0.,vres(1,il),nroot(il))
+                           vres_sat(ipf,imu,il,1,is)=vres(1,il)
+                           vres_sat(ipf,imu,il,2,is)=vres(2,il)
+                        endif
+c      write(*,*) 'new test',nroot(il),vres(1,il),v(nv),ires0,wres,nres
+c     summation over the resonance points
+c     if(nroot(il).ge.2) then
+c     write(*,*) 'at m,l=',imtae,il,'vres=',
+c     $                       ((ind(i)+ires0-1),vres(i,il),i=1
+c     &                       ,nroot(il)),wres
+c     endif
+                     endif
+c /\ end of definition of the resonance velocity for a given IL
+c \/ Start of resonance calculation for nroot(il) resonances
+                     do ires=1,min0(2,nroot(il)),1
+c                     do ires=1,min0(1,nroot(il)),1
+c     do ires=3,3
+c     define critpoints for a given integrals
+                        if(imtae.eq.min1) then
+                           ires10=min0(nv-1,ind(ires)+ires0-1)
+                           if(wb(ires10,imu,ipf,is)*wb(ires10+1,imu,ipf
+     &                          ,is).eq.0.)then
+                              psiavres(1,ires,il)=2.
+                           else
+                              rfres(2,6,ires,il)=v(ires10+1)-v(ires10)
+                              alp2=(vres(ires,il)-v(ires10))/rfres(2,6
+     &                             ,ires,il)
+                              psiavres(1,ires,il)=(v(ires10+1)-vres(ires
+     &                             ,il))/rfres(2,6,ires,il)
+                              do i1=1,2
+                                 do i2=1,4
+                                    rfres(i1,i2,ires,il)=rf(i1,i2,imu
+     &                                   ,ires10)*psiavres(1,ires,il)
+     &                                   +rf(i1,i2,imu,ires10+1)*alp2
+                                 enddo                           
+                              enddo
+                              wvpr_res=wvpr(ires10,imu,ipf,is)
+     &                             *psiavres(1,ires,il)+wvpr(ires10+1,
+     &                             imu,ipf,is)*alp2
+                              wb_res=wb(ires10,imu,ipf,is)*psiavres(1,
+     &                           ires,il)+wb(ires10+1,imu,ipf,is)*alp2
+                              psiavres(1,ires,il)=psiav(ires10,imu,ipf,
+     &                             is)*psiavres(1,ires,il)+psiav(ires10
+     &                             +1,imu,ipf,is)*alp2
+                           endif
+                        endif
+c     calculation of Gm -> Re Gm = fo(2); Im Gm = fo(3);
+c     write(*,*) imu,imtae,il
+c     aeqv is an indicator, which shows that average refers to trapped
+c     particles if it is -100.
+c                        write(*,*) 'dintgr defin',imtae,min1,tb
+c     &                       ,psiavres(1,ires,il),il
+                        if(psiavres(1,ires,il).ge.1.)then
+                           tb=0.
+                        else
+                           call xaverage(hhh1,beqv,iav,iter,eps,epsp
+     &                       ,fo(1,imtae0,il,ires),imtae,ntae,ntgr,psma
+     &                       ,psmi,qpfi,pmui,r0,rma,rmi,rvpar,rfres(1,1
+     &                       ,ires,il),sigm,symm,t0,tb,vres(ires,il),z0
+     &                       ,xhp,real(wtae),wb_res,0.,wvpr_res)
+                           aeqvv=hhh1
+c this is to use psi average for DF evaluator
+c                           ii00=indx(rr(1,1),nosurf,amax1(hhh1,beqv))
+                           psiavres(2,ires,il)=psiavres(1,ires,il)
+                        endif
+csing                        if(amax1(hhh1,beqv).lt.r0*1.01.and.sigm.lt.0.
+csing     &                       )nroot(il)=1
+                        if(tb.gt.1.e-10.and.imtae.eq.min1) then
+                           if(itestil.eq.1.or.itestil.eq.10)then
+ckg                 find the pitch at the outer leg
+c                  call fun4(ppsi(i0),b2d(i0,1),psior,hhhb)
+ckg                 midplane pitch angle calculation
+                              p0ga=bfo(hhb,b0,beqv,r0o,z11,z0)
+c     &                             ,bfo(b,b0,aeqv(1,imlmax),r0o,z11,z0)
+c     &                             ,b0,r0o,z0,b
+                              p0ga=sqrt(abs(1-pmu(imu)*hhb/b0/r0o
+     &                             ))*sigm
+ckg
+                              write(*,*) 'a,b=',hhh1,beqv,'z,pitch,psi='
+     &                             ,z11,p0ga,psio(dpsi1,ddpsi1,dzpsi1
+     &                             ,beqv,r0o,z11,z0,a1)
+c
+                              write(*,*) 'at m,l=',imtae,il
+     &                             ,'ind,vres=',ind(ires)+ires0-1
+     &                             ,vres(ires,il),ires
+c     write(*,*) 'crit.pnts.=',rfres,((rf(i,j,imu
+c     $                       ,ires10),i=1,2),j=1,6)
+                           endif
+                           aeqv(ires,il)=hhh1
+c     if calculation is succesfull derivative is next -> dwv, which is
+c     eventually dwv == |dwv|
+                           call derivative(wres(ires0),v(ires0)
+     $                          ,nres,vres(ires,il),dwv,real(wtae))
+                           dwv_m1(ires,il)=dwv
+                           ipfb=amin0(npf,ipf+1)
+                           if(tip.eq.'r')then
+                              if(wb(ires10,imu,ipfb,is).eq.0.)ipfb=ipfb
+     &                             -1
+                              if(wb(ires10,imu,ipfb-1,is).ne.0.)then
+                                 dwbdpphi=(wb(ires10,imu,ipfb,is)
+     &                                -wb(ires10,imu,ipfb-1,is))
+     &                                /((qpf(ipfb)-qpf(ipfb-1))*wb_res)
+                              else
+                                 dwbdpphi=0.
+                              endif
+c                              write(*,*) wb(ires10,imu,ipf,is)
+c     &                             ,wb(ires10+1,imu,ipf,is),wb_res
+c     &                             ,ires10,ires0
+c                              write(*,*) wb(ires10,imu,ipfb,is),
+c     &                             wb(ires10,imu,ipfb-1,is),qpf(ipfb)
+c     &                             ,qpf(ipfb-1)
+                              call derivative(wb(ires0,imu,ipf,is)
+     &                             ,v(ires0),nres,vres(ires
+     &                             ,il),hhh1,wb_res)
+c                              write(*,*) wb_res,vres(ires,il)
+c                             here keep only velocity derivative
+c                               add pitch angle later
+                              wb_res=hhh1/wb_res
+c                              pause
+                           endif
+csing                           if(nroot(il).gt.1.and.sigm.lt.0.
+csing     &                          .and.abs(dwv).lt..1*abs(wtae))then
+csing                              nroot(il)=1
+csing                              dwv=amax1(abs(dwv),.1*abs(wtae))
+csing                           endif
+c     following call is for equilibr. distr. function of alphas
+c     derivatives dfalpdv,dfalpdpsi are normalized to V_al0,
+c     Psi_edge and are in cm^-3
+cnng12 work around to get the right leg of the orbit to be used for the density
+c     
+                           if(is.eq.1) then
+                              if(aeqv(ires,il).gt.rr(1,1)) then
+                                 ii00=max0(indx(rr(1,1),nosurf,
+     &                                aeqv(ires,il))-3,1)
+                              else
+                                 ii00=max0(indx(rr(1,nts/2),nosurf,
+     &                                aeqv(ires,il)),1)
+                              endif
+                           else if(is.eq.2)then
+                              if(aeqv(ires,il).gt.rr(1,1)) then
+                                 ii00=max0(indx(rr(1,1),nosurf,
+     &                                aeqv(ires,il))-3,1)
+                              else
+                               ii00=max0(indx(rr(1,1),nosurf,beqv)-3,1)
+                              endif
+                           endif
+c                           psiuse=ppsi(ii00)
+                           psiuse=psiavres(2,ires,il)
+cnng12
+                           call distrfun(ai,b0*b0oo,dfalp(ires,il)
+     &                          ,dfalpdv(ires,il),dfalpdpsi,dpga,eps
+     &                          ,psiuse,gam,hnub(ires,il)
+     &                          ,ihsps,iter,qpfi,p0ga,pmui,rvpar,sigm
+     &                          ,tb,tip,vres(ires,il),vi,v(nv),0.,z0,xhp
+     &                          ,zi,dwbdpphi,wb_res)
+ckg_sat
+                           fdist_sat(ipf,imu,il,ires,is)=dfalp(ires,il)
+                           bgy_sat(ipf,imu,il,ires,is)=psiavres(1,ires,
+     &                            il)
+                           q_sat(ipf,imu,il,ires,is)=q_psi(psiavres(1,
+     &                          ires,il))
+ckg_sat
+                           if((tip.eq.'c')
+     &                          .and.aeqv(ires,il).eq.-100)then
+                              dfalpdv(ires,il)=dfalpdv(ires,il)*0.5
+                              dfalpdpsi=dfalpdpsi*0.5
+                              dfalp(ires,il)=dfalp(ires,il)*0.5
+                           elseif(aeqv(ires,il).ne.-100)then
+c this accounts for psi average dependence on v and lambda for passing particles
+                              if(pmui.lt.r0.and.abs((psiavres(1,ires,il)
+     &                             -qpfi)/((1.-pmui/r0))).lt.1.)then
+                                 dfalpdv(ires,il)=dfalpdv(ires,il)+
+     &                              dfalpdpsi*(psiavres(1,ires,il)-qpfi)
+     &                                /((1.-pmui/r0)*vres(ires,il))
+                              endif
+                           endif
+                           if(itestil.eq.1.or.itestil.eq.10)then
+                              write(*,*)'tb,vres,dwv,dfalp,dfalpdv'
+     &                             ,',dfalpdpsi,fo,psiaver',tb,vres(ires
+     &                             ,il),dwv,dfalp(ires,il),dfalpdv(ires
+     &                             ,il),dfalpdpsi,fo(2,imtae0,il,ires)
+     &                             ,fo(3,imtae0,il,ires),psiavres(1,ires
+     &                             ,il),bgy_sat(ipf,imu,il,ires,is)
+                           endif
+                           hhh1=tb*vres(ires,il)**6/abs(dwv)
+                           dfalpdv(ires,il)=hhh1*(-dfalpdv(ires,il)
+     $                          -omstar*vres(ires,il)*dfalpdpsi)
+c     Berk's stuff is defined here
+                           dwpfi1=(-ntae*(wqvpr(ires10,imu,ipfb,is)
+     &                          +wd(ires10,imu,ipfb,is))+real(wtae)
+     &                          +il*wb(ires10,imu,ipfb,is)
+     &                          -wres(ires10))/(qpf(ipfb)-qpf(ipfb
+     &                          -1))
+                           dwpfi=(-ntae*(wqvpr(ires10+1,imu,ipfb,is)
+     &                          +wd(ires10+1,imu,ipfb,is))
+     &                          +real(wtae)+il*wb(ires10+1,imu,ipfb
+     &                          ,is)-wres(ires10+1))/(qpf(ipfb)
+     &                          -qpf(ipfb-1))
+c
+                           dwpfi=dwpfi1-(dwpfi1-dwpfi)*(vres(ires,il)
+     &                          -v(ires10))/v(ires10+1)-v(ires10)
+                           hwb1(ires,il)=abs(dwv+omstar*vres(ires,il)
+     &                          *dwpfi)
+c                           write(*,*) hnub(ires,il),hwb1(ires,il)
+c     &                          ,'------------------'
+c this is nu_eff^3 and in units 10^18 sec^{-3}, verno 2009
+                           hnub(ires,il)=hnub(ires,il)*(hwb1(ires,il)
+     &                          *abs(wtae)*r0/real(ntae)/vi/10.)
+     &                          **2*pmu(imu)/r0
+                           dfalp(ires,il)=dfalp(ires,il)*hhh1
+c     c       this variable is the key to succesful resonance
+                           dintgr(il,ires,4,2)=-1.01
+                           if(im1.eq.0)then
+c     Berk's stuff is added here
+                           hwb=hwb1(ires,il)*vres(ires,il)*abs(wtae
+     &                          )/2.
+c this is derivative of Omega_res over P_phi
+                           dwp_sat(ipf,imu,il,ires,is)=hwb1(ires,il)
+     &                          /abs(omstar*vres(ires,il))
+                           hwb1(ires,il)=(hwb)**1.5/hnub(ires,il)
+                           endif
+c     
+                        else if(imtae.eq.min1)then
+                           dintgr(il,ires,4,2)=0.
+                        endif
+ 32                        continue
+                     enddo
+c     /\ end of resonance points definition for multiple resonances
+c
+c M1 stability is initiated here
+c:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+               if(im1.ne.0)then
+                  do ivm1=1,nv
+                     if(ivm1.eq.ind(1).or.ivm1.eq.ind(1)+1.or.(nroot(0)
+     &                    .gt.1.and.(ivm1.eq.ind(2).or.ivm1.eq.ind(2)
+     &                    +1)).or.(nroot(0).gt.2.and.ivm1.ge.ind(3)))
+     &                    then 
+                        i_m1(ivm1,il)=1
+                     else
+                        i_m1(ivm1,il)=0
+                     endif
+                     if(nroot(0).gt.2.and.ivm1.ge.ind(3).or.imu_m1.eq
+     &                    .imu)goto33
+                     if(abs(wb(ivm1,imu,ipf,is)).gt.1.e-10) then
+                     if(imtae.eq.min1) then
+c     define critpoints for a given integrals
+                        do i1=1,2
+                           do i2=1,4
+                              rf_m1(i1,i2,ivm1)=rf(i1,i2,imu,ivm1)
+                           enddo                           
+                        enddo
+                     endif
+c     calculation of Gm -> Re Gm = fo(2); Im Gm = fo(3);
+c     write(*,*) imu,imtae,il
+c     aeqv is an indicator, which shows that average refers to trapped
+c     particles if it is -100.
+                     call xaverage(hhh1,beqv,iav,iter,eps,epsp
+     $                    ,fo_m1(1,ivm1,imtae0,il),imtae,ntae,ntgr
+     &                    ,psma,psmi,qpfi,pmui,r0,rma,rmi,rvpar
+     &                    ,rf_m1(1,1,ivm1),sigm,symm,t0,tb
+     &                    ,v(ivm1),z0,xhp,real(wtae),wb(ivm1,imu,ipf,is)
+     &                    ,wres(ivm1),wvpr(ivm1,imu,ipf,is))
+                     if(hhh1.eq.-100..and.imu_m1.eq.0)imu_m1=imu
+                     if(imtae.eq.min1) then
+                        if(itestil.eq.20)then
+                           write(*,*) 'a,b=',hhh1,beqv
+                           write(*,*) 'at m,l=',imtae,il,'ind,vres='
+     &                          ,ind(1)+ires0-1,vres(1,il)
+                        endif
+c     following call is for equilibr. distr. function of alphas
+c     derivatives dfalpdv,dfalpdpsi are normalized to V_al0,
+c     Psi_edge and are in cm^-3
+                        dwbdpphi=0.
+                        wb_res=0.
+                        call distrfun(ai,b0*b0oo,dfal,dfalpdv_m1(ivm1,il
+     &                       ),dfalpdpsi,dpga,eps,psiav(ivm1,imu,ipf,is)
+     &                       ,gam,hhh1,ihsps,iter,qpfi,p0ga,pmui,rvpar
+     &                       ,sigm,tb,tip,v(ivm1),vi,v(nv),0.,z0,xhp,zi
+     &                       ,dwbdpphi,wb_res)
+                        if((tip.eq.'c').and
+     &                       .hhh1.eq.-100)then
+                           dfalpdv_m1(ivm1,il)=dfalpdv_m1(ivm1,il)*0.5
+                           dfalpdpsi=dfalpdpsi*0.5
+                           dfal=dfal*0.5
+                        elseif(hhh1.ne.-100)then
+c this accounts for psi average dependence on v and lambda for passing particles
+                           if(pmui.lt.r0.and.abs((psiavres(1,ires,il)
+     &                          -qpfi)/((1.-pmui/r0))).lt.1.)then
+                              dfalpdv(ires,il)=dfalpdv_m1(ivm1,il)+
+     &                             dfalpdpsi*(psiav(ivm1,imu,ipf,is)
+     &                             -qpfi)/((1.-pmui/r0)*v(ivm1))
+                           endif
+                        endif
+                        if(itestil.eq.20)then
+                           write(*,*)'tb,vres,dwv,dfalpdv,dfalpdpsi'
+     &                          ,',fo,psiaver',tb,vres(1,il),dwv
+     &                          ,dfalpdv(1,il),dfalpdpsi,fo(2,imtae0,il
+     &                          ,1),fo(3,imtae0,il,1),psiav(ivm1,imu,ipf
+     &                          ,is)
+                        endif
+                        hhh1=tb*v(ivm1)**6
+                        dfalpdv_m1(ivm1,il)=hhh1*(
+c     &                       -omstar*v(ivm1)*dfalpdpsi)
+     &                       -dfalpdv(ires,il)*(
+c     &                        sign(abs(wtae),real(wtae))
+     &                       -w_rotres+(w_rot0-
+     &                       abs(psiav(ivm1,imu,ipf,is))**p_rot*
+     &                       (w_rot0-w_rot1)))
+     &                       /sign(abs(wtae),real(wtae))
+     &                       -omstar*v(ivm1)*dfalpdpsi)
+c     
+                     endif
+                     endif
+ 33                  continue
+                  enddo
+c     /\ end of velocity integration definition for principal part
+c     
+               endif
+c End of M1 initiation
+c:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+                  enddo
+c     /\ end of bounce harmonic sum - il
+               enddo
+c     /\ end of poloidal harmonic definition - imtae
+c     we assemble here all quantities
+c......................................................................
+               xmlmax=0.
+               hhh=0.
+               imlmax=0.
+               imtamax=0
+               xmtamax=0.
+               do il=ml10,ml2
+                  hhh11=0.
+                  do ires=1,min0(2,nroot(il)),1
+c                  do ires=1,min0(1,nroot(il)),1
+c                  write(*,*) 'new test',il,ires,dintgr(il,ires,4,2)
+                     if(abs(dintgr(il,ires,4,2)+1.01).lt.0.01)then
+                        hhh1=0.
+                        hhh2=0.
+                        do imtae=min1+1-min,max1+1-min
+                           hhh1=hhh1+fo(2,imtae,il,ires)
+                           hhh2=hhh2+fo(3,imtae,il,ires)
+                           hhh111=sqrt(fo(2,imtae,il,ires)**2+fo(3,imtae
+     &                          ,il,ires)**2)
+                           if(xmtamax.lt.hhh111) then
+                              xmtamax=hhh111
+                              imtamax=imtae-1+min
+                           endif
+                           if(itestm.eq.1)write(*,*) 'tst1',imtae,fo(2
+     &                          ,imtae,il,ires),fo(3,imtae,il,ires)
+                        enddo
+c                        if(itest.eq.1)then
+c                           if(itestm.eq.1)write(*,*) 'tst2',ires,il,hhh1
+c     &                          ,hhh2
+c                           write(*,*) 'nu_eff,v,dg',(hnub(ires,il)*
+c     &                          1.e+18)**(1./3.),vres(ires,il),hhh1
+c                        endif
+                        hhh1=hhh1**2+hhh2**2
+                        hhh11=0.
+                        hhh2=0.
+                        do imtae=min1+1-min,max1+1-min
+                           hhh11=hhh11+fo(5,imtae,il,ires)
+                           hhh2=hhh2+fo(4,imtae,il,ires)
+                        enddo
+                        if(itestm.eq.1)write(*,*) 'tst3',ires,il,hhh11
+     &                       ,hhh2
+                        hhh2=hhh2**2+hhh11**2
+cberk
+                        if(im1.eq.0)then
+c this is with FLR corrections
+                        hhh2b=hhh2
+ctune this is without FLR and is good for benchmarks with other codes,
+c     which do not have FLR 
+                        hhh2b=hhh1
+                        hhb=dfalpdv(ires,il)*hhh2b
+c this is 2 omega_b / (d Omega /d P_phi) normalized to delta B_max/B
+                        dwv_sat(ipf,imu,il,ires,is)=2.e+6*(hnub(ires,il)
+     &                       *hwb1(ires,il))**(1/3.)*hhh2b**(1/4.)
+     &                       /(dwp_sat(ipf,imu,il,ires,is)*sqrt(dbobmax)
+     &                       )
+                        do ib=1,iberk
+                           ug=(dbob(ib)/(dbobmax*2))**1.5*hwb1(ires,il)
+     &                          *(hhh2b)**(3./4.)
+                           ug=amax1(ug,1.e-9)
+c     nizhnyaya chast'
+                           gberkintmu(imu,ib,2)=gberkintmu(imu,ib,2)
+     &                          +hhb
+c     for averaging the effective scattering frequency (sec^-1)
+                           gberkintmu(imu,ib,3)=gberkintmu(imu,ib,3)
+     &                          +hhb*(hnub(ires,il)*1.e+18)**(1./3.)
+c     averaging <omega_b^2> (sec^-1)
+                           gberkintmu(imu,ib,4)=gberkintmu(imu,ib,4)
+     &                          +hhb*(ug*hnub(ires,il)*1.e+18)**0
+     &                          .66666666667
+c     verkhnyaya chast'
+                           gberkintmu(imu,ib,1)=gberkintmu(imu,ib,1)
+c note that this /(1.+.57 ... is from original berk paper. 
+     &                          +hhb/(1.+.57*ug/(1.+1.45/ug)**.3333)
+                        enddo
+                        endif
+c     /\ End of poloidal harmonic assembly
+c     c       this variable keeps res. velocity 
+                        dintgr(il,ires,3,2)=vres(ires,il)
+c     c       this variable keeps res. contrib. w/o  FLR
+                        dintgr(il,ires,1,2)=dfalp(ires,il)*hhh1
+c     c       this variable keeps res. contrib. with FLR
+                        dintgr(il,ires,2,2)=dfalp(ires,il)*hhh2
+c                        write(*,*) dfalpdv(ires,il),dfalp(ires,il)
+                        hhh1=dfalpdv(ires,il)*hhh1
+                        hhh=hhh+hhh1
+ckg_sat
+                        vgam_sat(ipf,imu,il,ires,is)=hhh2
+                        hhh2=dfalpdv(ires,il)*hhh2
+ckg_sat
+                        gam_sat(ipf,imu,il,ires,is)=hhh2
+c
+                        if(itestm.eq.1)write(*,*) 'tst4',ires,il,hhh1
+     &                       ,hhh2
+                        hhh11=hhh1
+c                        if(ipf.eq.44.and.is.eq.1.and.il.eq.imlmax)then
+c                           write(*,*)
+c     &                          'growth test',hhh1,imu,ires,is,vres_sat(ipf,imu
+c     &                          ,il,ires,is),il
+c                        endif
+ckg_sat
+                        if(vres(ires,il).lt.1..or.tip.eq.'m'.or.tip
+     &                       .eq.'e'.or.tip.eq.'h'.or.tip.eq.'i'.or.tip
+     &                       .eq.'q'.or.tip.eq.'r') then
+c     passing w/o FLR
+                           gamintmu(imu,1)=gamintmu(imu,1)+hhh1
+                        else
+                           gamintmu(imu,5)=gamintmu(imu,5)+hhh1
+                        endif
+c     trapped w/o FLR
+                        if(aeqv(ires,il).eq.-100.) then
+                           if(vres(ires,il).lt.1..or.tip.eq.'m'.or.
+     &                          tip.eq.'e'.or.tip.eq.'h'.or.tip.eq.'q'
+     &                          .or.tip.eq.'i'.or.tip.eq.'r')then
+                              gamintmu(imu,3)=gamintmu(imu,3)+hhh1
+                           else
+                              gamintmu(imu,7)=gamintmu(imu,7)+hhh1
+                           endif
+                        endif
+c     trapped w FLR
+                        if(aeqv(ires,il).eq.-100.) then
+                           if(vres(ires,il).lt.1..or.tip.eq.'m'.or
+     &                          .tip.eq.'e'.or.tip.eq.'h'.or.tip.eq.'q'
+     &                          .or.tip.eq.'i'.or.tip.eq.'r')then
+                              gamintmu(imu,4)=gamintmu(imu,4)+hhh2
+                           else
+                              gamintmu(imu,8)=gamintmu(imu,8)+hhh2
+                           endif
+                        endif
+                        if(vres(ires,il).lt.1..or.tip.eq.'m'.or.tip
+     &                       .eq.'e'.or.tip.eq.'h'.or.tip.eq.'q'.or.tip
+     &                       .eq.'i'.or.tip.eq.'r') then
+c     passing w FLR
+                           gamintmu(imu,2)=gamintmu(imu,2)+hhh2
+                        else
+                           gamintmu(imu,6)=gamintmu(imu,6)+hhh2
+                        endif
+                        if(itestil.eq.1.or.itestil.eq.10)then
+                           write(*,*) 'Mmax',imtamax,' il',il,tb,hhh
+     &                          ,vres(ires,il),dwv,' ml10,ml2',ml10
+     &                          ,ml2
+c
+                           write(*,*) 'With FLR',hhh2,' W/o FLR'
+     &                          ,hhh11,'mode-trapp.freq.',(hwb1(ires
+     &                          ,il)*hnub(ires,il)*1.e+18)**0.666667
+     &                          *(hhh2b)**(0.5)
+c/dbobmax
+                        endif
+c     c     Calculation of the cutoff contribution at v=v_\alpha0
+                        if(imu.gt.1.and.dintgr(il,ires,4,2).eq
+     &                       .dintgr(il,ires,4,1).and.(dintgr(il
+     &                       ,ires,3,2)-1.)*(dintgr(il,ires,3,1)-1.
+     &                       ).le.0..and.tip.ne.'m'.and.tip.ne.'e'
+     &                       .and.tip.ne.'h'.and.tip.ne.
+     &                       'i'.and.tip.ne.'r'.and.tip.ne.'q')then
+c     cutoff passing and trapped particles w/o FLR
+                           hhh1=(dintgr(il,ires,1,1)
+     &                          +dintgr(il,ires,1,2))*0.5
+ctune mozhet?    &                          *(dintgr(il
+c     &                          ,ires,3,2)-1.)+dintgr(il,ires,1,2)
+c     &                          *(1.-dintgr(il,ires,3,1)))
+c     &                          /(dintgr(il,ires,3,2)-dintgr(il
+c     &                          ,ires,3,1))
+     &                          /abs(dintgr(il,ires,3,2)
+     &                          -dintgr(il,ires,3,1))*abs(pmu(imu)
+     &                          -pmu(imu-1))
+                           gamintpfi(ipf,3,is)=gamintpfi(ipf,3,is)
+     &                          +hhh1
+c     cutoff passing and trapped particles with FLR
+                           hhh2=(dintgr(il,ires,2,1)
+     &                          +dintgr(il,ires,2,2))*0.5
+c     &                          *(dintgr(il
+c     &                          ,ires,3,2)-1.)+dintgr(il,ires,2,2)
+c     &                          *(1.-dintgr(il,ires,3,1)))
+c     &                          /(dintgr(il,ires,3,2)-dintgr(il
+c     &                          ,ires,3,1))
+     &                          /abs(dintgr(il,ires,3,2)
+     &                          -dintgr(il,ires,3,1))*abs(pmu(imu)
+     &                          -pmu(imu-1))
+                           gamintpfi(ipf,4,is)=gamintpfi(ipf,4,is)+hhh2
+c     write(*,*) ires,imtae,il,hhh1,hhh2
+c     cutoff trapped particle contribution to cutoff
+                           if(aeqv(ires,il).eq.-100.) then
+                              gtrap(ipf,3)=gtrap(ipf,3)+hhh1
+                              gtrap(ipf,4)=gtrap(ipf,4)+hhh2
+                           endif
+c        yn=(f(1)*(x(2)-xn)+f(2)*(xn-x(1)))/(x(2)-x(1))
+                        endif
+                     endif
+                     if(xmlmax.lt.abs(hhh11))then
+                        xmlmax=abs(hhh11)
+                        imlmax=il
+                     endif
+                  enddo
+               enddo
+c /\ End of bounce harmonic and multiple resonances assembly
+c......................................................................
+c
+c M1 stability is integrated here
+c:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+               if(im1.ne.0)then
+               do il=ml10,ml2
+                  do ivm1=1,nv
+                     if(i_m1(ivm1,il).eq.1)goto34
+                     if(abs(wb(ivm1,imu,ipf,is)).gt.1.e-10.and.imu.ne
+     &                    .imu_m1) then
+                        hhh11=0.
+                        hhh1=0.
+                        hhh2=0.
+                        do imtae=min1+1-min,max1+1-min
+                           hhh1=hhh1+fo_m1(2,ivm1,imtae,il)
+                           hhh2=hhh2+fo_m1(3,ivm1,imtae,il)
+                        enddo
+                        hhh1=hhh1**2+hhh2**2
+                        hhh11=0.
+                        hhh2=0.
+                        do imtae=min1+1-min,max1+1-min
+                           hhh11=hhh11+fo_m1(5,ivm1,imtae,il)
+                           hhh2=hhh2+fo_m1(4,ivm1,imtae,il)
+                        enddo
+                        hhh2=hhh2**2+hhh11**2
+cAtra(x,y,nns,res)
+c     /\ End of poloidal harmonic sum
+                        wres_av=wres_m1(ivm1,il)
+c-real(wtae)
+c                        if(imu_m1.ne.0) then
+c                           q_av=q_psi(psiav(ivm1,imu,ipf,is))
+c                           wres_av=wres_av+q_av*ntae*wvpr(ivm1,imu,ipf
+c     &                          ,is)
+c                        endif
+                        hhh1=dfalpdv_m1(ivm1,il)*hhh1/wres_av
+                        hhh2=dfalpdv_m1(ivm1,il)*hhh2/wres_av
+                        omintmu(imu,1)=omintmu(imu,1)+hhh1*(v(2)-v(1))
+                        omintmu(imu,2)=omintmu(imu,2)+hhh2*(v(2)-v(1))
+                      endif
+  34                  continue
+                  enddo
+                  do ires=1,min0(2,nroot(0)),1
+                     if(abs(dintgr(0,ires,4,2)+1.01).lt.0.01.and
+     &                    .vres(ires,0).lt.1.)then
+                        isign=-3
+                        do ivm1=ind(ires),ind(ires)+1
+                        isign=isign+2
+                        hhh11=0.
+                        hhh1=0.
+                        hhh2=0.
+                        do imtae=min1+1-min,max1+1-min
+                           hhh1=hhh1+fo_m1(2,ivm1,imtae,il)
+                           hhh2=hhh2+fo_m1(3,ivm1,imtae,il)
+                        enddo
+                        hhh1=hhh1**2+hhh2**2
+                        hhh11=0.
+                        hhh2=0.
+                        do imtae=min1+1-min,max1+1-min
+                           hhh11=hhh11+fo_m1(5,ivm1,imtae,il)
+                           hhh2=hhh2+fo_m1(4,ivm1,imtae,il)
+                        enddo
+                        hhh2=hhh2**2+hhh11**2
+cAtra(x,y,nns,res)
+                        hhh1=real(isign)*dfalpdv_m1(ivm1,il)*hhh1
+     &                       /dwv_m1(ires,0)
+                        hhh2=real(isign)*dfalpdv_m1(ivm1,il)*hhh2
+     &                       /dwv_m1(ires,0)
+                        omintmu(imu,1)=omintmu(imu,1)+hhh1
+                        omintmu(imu,2)=omintmu(imu,2)+hhh2
+                        enddo
+                     endif
+                  enddo
+               enddo
+               endif
+c End of M1 integration
+c:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+               do ki=1,8
+                  gamintmu(imu,ki)=gamintmu(imu,ki)*gamkom
+                  if(ki.lt.3)omintmu(imu,ki)=omintmu(imu,ki)*gamkom
+ckg dopolnitel'nyi mnozhitel' dlya testa s MGD glob codom byl /4.
+     &                 /2./3.1415926
+               enddo
+               if(itest.eq.1)then
+                  write(*,*) '-----------------------------------------'
+                  z11=0.
+                  write(*,*) 'mu=', pmu(imu), ' A=',aeqv(1,imlmax)
+                  write(*,*) 'Minm,Maxm=',min1,max1
+     &                 ,'il_at_max,HHmax=',imlmax,xmlmax
+                  write(*,*)'ILmin,Ilmax=',ml10,ml2,gamintmu(imu,1)
+     &                 ,gamintmu(imu,5),gamintmu(imu,3),gamintmu(imu,7)
+     &                 ,imu,'Pol.harm.of max. contrib.(m)',imtamax
+                  write(*,*)'Princpart=',omintmu(imu,1),omintmu(imu,2)
+                  write(*,*)'with FLR',gamintmu(imu,2),gamintmu(imu,4)
+               endif
+               call equiv(dintgr(-mtl,1,1,1),dintgr(-mtl,1,1
+     &              ,2),(2*mtl+1)*nnres*4)
+               call zero(dintgr(-mtl,1,1,2),nnres*(2*mtl+1)*4)
+            enddo
+c /\ end of MU - pitch angle integration loop
+            call asimp(pmu,gamintmu(1,1),nmu,gamintpfi(ipf,1,is))
+            call asimp(pmu,gamintmu(1,2),nmu,gamintpfi(ipf,2,is))
+            do ib=1,iberk
+               call asimp(pmu,gberkintmu(1,ib,1),nmu,gberkintpfi(ipf
+     &              ,ib,2*is-1))
+               call asimp(pmu,gberkintmu(1,ib,2),nmu,gberkintpfi(ipf
+     &              ,ib,2*is))
+               call asimp(pmu,gberkintmu(1,ib,3),nmu,gberkintpfi(ipf
+     &              ,ib,4+is))
+               call asimp(pmu,gberkintmu(1,ib,4),nmu,gberkintpfi(ipf
+     &              ,ib,6+is))
+            enddo
+            if(is.eq.1) then
+               call asimp(pmu,gamintmu(1,3),nmu,gtrap(ipf,1))
+               call asimp(pmu,gamintmu(1,4),nmu,gtrap(ipf,2))
+               call asimp(pmu,gamintmu(1,7),nmu,gtrap(ipf,5))
+               call asimp(pmu,gamintmu(1,8),nmu,gtrap(ipf,6))
+            endif
+            call asimp(pmu,omintmu(1,1),nmu,hhh1)
+            omintpfi(ipf,1)=omintpfi(ipf,1)+hhh1
+            call asimp(pmu,omintmu(1,2),nmu,hhh2)
+            omintpfi(ipf,2)=omintpfi(ipf,2)+hhh2
+c            write(*,*) 'Here is gamu',(gamintmu(i,5),i=1,nmu)
+c            write(*,*) '----'
+            call asimp(pmu,gamintmu(1,5),nmu,gamintpfi(ipf,5,is))
+            call asimp(pmu,gamintmu(1,6),nmu,gamintpfi(ipf,6,is))
+c            write(*,*) ' ZOW>0,<0,TRPD=',gamintpfi(ipf,1,1)
+c     &           ,gamintpfi(ipf,1,2),gtrap(ipf,1)
+c            write(*,*) ' Cutoff, >0,<0',gamintpfi(ipf,3,1)*gamkom
+c     &           ,gamintpfi(ipf,3,2)*gamkom,gtrap(ipf,2)*gamkom
+            if(ipf.eq.npf.or.mod(ipf,3).eq.0)then
+            open(unit=18,file=filename,status='unknown')
+            write(18,*) is,ipf+1
+            write(18,*) gamkomis,omkomis,gtrap1
+            write(18,*) gamintpfi
+            write(18,*) omintpfi
+            write(18,*) gtrap
+            write(18,*) gberkintpfi
+            write(18,*) gberkis
+            close(18)
+            endif
+            write(*,*) 'At is,ipf=',is,ipf,' gam`s=',gamintpfi(ipf,1,is)
+     &           ,gamintpfi(ipf,3,is)*gamkom,gamintpfi(ipf,5,is)
+     &           ,'dW_r=',omintpfi(ipf,1)
+ 119        call zero(dintgr(-mtl,1,1,1),nnres*(2*mtl+1)*8)
+         enddo
+c /\ end of integration in minor radius
+         if(itest.ne.1) ipf1t=1
+         do ib=1,iberk
+            call asimp(qpf,gberkintpfi(1,ib,2*is-1),npf,gberkis(ib,2*is
+     &           -1))
+            call asimp(qpf,gberkintpfi(1,ib,2*is),npf,gberkis(ib,2*is))
+            call asimp(qpf,gberkintpfi(1,ib,4+is),npf,gberkis(ib,4+is))
+            call asimp(qpf,gberkintpfi(1,ib,6+is),npf,gberkis(ib,6+is))
+         enddo
+         call asimp(qpf,gamintpfi(1,1,is),npf,gamkomis(1,is))
+         call asimp(qpf,gamintpfi(1,2,is),npf,gamkomis(2,is))
+         call asimp(qpf,gamintpfi(1,3,is),npf,gamkomis(3,is))
+         gamkomis(3,is)=gamkomis(3,is)*gamkom
+         call asimp(qpf,gamintpfi(1,4,is),npf,gamkomis(4,is))
+         gamkomis(4,is)=gamkomis(4,is)*gamkom
+         call asimp(qpf,gamintpfi(1,5,is),npf,gamkomis(5,is))
+         call asimp(qpf,gamintpfi(1,6,is),npf,gamkomis(6,is))
+         call asimp(qpf,omintpfi(1,1),npf,hhh1)
+         omkomis(1)=omkomis(1)+hhh1
+         call asimp(qpf,omintpfi(1,2),npf,hhh2)
+         omkomis(2)=omkomis(2)+hhh2
+         if(is.eq.1) then
+            call asimp(qpf,gtrap(1,1),npf,gtrap1(1))
+            call asimp(qpf,gtrap(1,2),npf,gtrap1(2))
+            call asimp(qpf,gtrap(1,3),npf,gtrap1(3))
+            gtrap1(3)=gtrap1(3)*gamkom
+            call asimp(qpf,gtrap(1,4),npf,gtrap1(4))
+            gtrap1(4)=gtrap1(4)*gamkom
+            call asimp(qpf,gtrap(1,5),npf,gtrap1(5))
+            call asimp(qpf,gtrap(1,6),npf,gtrap1(6))
+         endif
+      enddo
+c /\ end of integration for co(+trapped) and contragoing particles. 
+c_________graph\/stuff
+c     write(*,*) (((wd(i,j,k,1),i=1,nv),j=1,nmu),k=1,npf)
+c     write(*,*) ' grid',v,qpf,pmu
+c      gamkom=gamintpfi(ipf-1,1,1)
+      if(im1.ne.1) then
+      write(*,*)' dB/B,  Gam_d/Gam_l, Nu_eff(sec^-1),<(om_b/nu)^2>'
+ckg
+      do ib=1,iberk
+         hhh1=(gberkis(ib,1)+gberkis(ib,3))/(gberkis(ib,2)
+     &        +gberkis(ib,4))
+         hhh2=(gberkis(ib,5)+gberkis(ib,6))/(gberkis(ib,2)
+     &        +gberkis(ib,4))
+         fplot(ib,1,1)=amin1(1./hhh1,20.)
+         write(*,'(4e18.11)') dbob(ib),hhh1,hhh2,(gberkis(ib,7)+
+     &        gberkis(ib,8))/(gberkis(ib,2)+gberkis(ib,4))
+c         dbob(ib)=amin1(dbob(ib),1.e-4)
+c         dbob(ib)=amax1(dbob(ib),1.e-6)
+c         dbob(ib)=alog10(dbob(ib))
+c         fplot(ib,1,1)=alog10(fplot(ib,1,1))
+      enddo
+c saturated amplitude 
+      call twodgraf(fplot(1,1,1),dbob,iberk,1,'white','solid','red',5
+     &     ,'Bghvsgagd','log \gg\d\ga\u/\gg\dd'
+     &     ,'(B\d\ghmax\u/B)','ts',6,6,1,yyplot,0)
+ckg
+      gamkom=gamkomis(1,1)+gamkomis(1,2)+gamkomis(3,1)+gamkomis(3,2)
+      gamkomflr=gamkomis(2,1)+gamkomis(2,2)+gamkomis(4,1)+gamkomis(4,2)
+      write(*,*) 'growth rate`s are'
+      write(*,*)'---------------------------------------------------'
+      write(*,*) 'Positive passing w/o  FLR w/o cutoff',gamkomis(1,1)
+     &     -gtrap1(1)
+      write(*,*) 'Positive passing w/o  FLR at sing. cutoff',gamkomis(3
+     &     ,1)-gtrap1(3)
+      write(*,*) 'Positive passing w/o  FLR at nonsing. cutoff'
+     &     ,gamkomis(5,1)-gtrap1(5)
+      write(*,*)'........flr'
+      write(*,*) 'Positive passing with FLR w/o cutoff',gamkomis(2,1)
+c     &     -gtrap1(1)*gamkomis(2,1)/gamkomis(1,1)
+     &     -gtrap1(2)
+      write(*,*) 'Positive passing with FLR at sing. cutoff',gamkomis(4
+     &     ,1)-gtrap1(4)
+      write(*,*) 'Positive passing with FLR at nonsing. cutoff'
+     &     ,gamkomis(6,1)-gtrap1(6)
+      write(*,*)'---------------------------------------------------'
+      write(*,*) 'Negative passing w/o  FLR w/o cutoff',gamkomis(1,2)
+      write(*,*) 'Negative passing w/o  FLR at sing. cutoff',gamkomis(3
+     &     ,2)
+      write(*,*) 'Negative passing w/o  FLR at nonsing. cutoff'
+     &     ,gamkomis(5,2)
+      write(*,*)'........flr'
+      write(*,*) 'Negative passing with FLR w/o cutoff',gamkomis(2,2)
+      write(*,*) 'Negative passing with FLR at sing. cutoff',gamkomis(4
+     &     ,2)
+      write(*,*) 'Negative passing with FLR at nonsing. cutoff'
+     &     ,gamkomis(6,2)
+      write(*,*)'---------------------------------------------------'
+      write(*,*) 'Trapped w/o  FLR w/o cutoff',gtrap1(1)
+      write(*,*) 'Trapped w/o  FLR at sing. cutoff',gtrap1(3)
+      write(*,*) 'Trapped w/o  FLR at nonsing. cutoff',gtrap1(5)
+      write(*,*)'........flr'
+      write(*,*) 'Trapped w  FLR w/o cutoff',gtrap1(2)
+      write(*,*) 'Trapped w  FLR at sing. cutoff',gtrap1(4)
+      write(*,*) 'Trapped w  FLR at nonsing. cutoff',gtrap1(6)
+      write(*,*)'---------------------------------------------------'
+      write(*,*) 'Total growth rate w/o FLR',gamkom
+      write(*,*) 'Total growth rate withFLR',gamkomflr
+cnng12 writing simple output
+c
+      write(57,*) '>Finite Orbit Width res. (FOW) for fast ion specie:'
+      write(57,*) ' Mass/m_p'
+      write(57,*) ai
+      write(57,*) ' Charge/e_p'
+      write(57,*) zi
+      write(57,*) ' Velocity in 10^9 cm/sec'
+      write(57,*) vi
+      write(57,*) ' Va/Valfv='
+      write(57,*) vi/valfv
+      write(57,*) 'Fast ion growth rate w/o FLR, gam_h'
+      write(57,*) gamkom
+      write(57,*) 'Fast ion growth rate withFLR, gam_hFLR'
+      write(57,*) gamkomflr
+      write(57,*) 'Critical beta is to be calculated'
+      write(57,*) 'beta_hcrit=-beta_h*(all dampings above)/gam_h or '
+      write(57,*) 'beta_hcrit=-beta_h*(all dampings above)/gam_hFLR or '
+      close(57)
+      open(57,file='smpl_out',status='unknown')
+      read(57,*)
+      read(57,*) gcontL
+      read(57,*)
+      read(57,*) gecoll
+      read(57,*)
+      read(57,*) geL
+      read(57,*)
+      read(57,*) gDL
+      read(57,*)
+      read(57,*) gTL
+      read(57,*)
+      read(57,*) gHL
+      read(57,*)
+      read(57,*) gCL
+      read(57,*)
+      read(57,*) grL
+      gdTot=grL+gCL+gHL+gTL+gDL+geL+gecoll+gcontL
+      close(57)
+ckg
+      endif
+      write(*,*) 'Principal part w/o FLR',omkomis(1)
+      write(*,*) 'Principal part with FLR',omkomis(2)
+      omkom=omkomis(1)
+      omkomflr=omkomis(2)
+      open(unit=18,file=filename,status='unknown')
+      write(18,*) is-1,ipf
+      write(18,*) gamkomis,omkomis,gtrap1
+      write(18,*) gamintpfi
+      write(18,*) omintpfi
+      write(18,*) gtrap
+      write(18,*) gberkintpfi
+      write(18,*) gberkis
+      close(18)
+ckg_saturation
+cnng12 Xin file for TAE structure and normalization is computed here
+c      to proceed with all the files (after they are created) use command 
+c             ls kXin*w.* > kXin.dat
+c In each file kXin* beam growth rate are included only when run for alphas 
+c are done (after beams are done), otherwise it makes the amplitude predictions 
+c only with the current (alphas or beams) growth rates so it makes sense
+c to run alphas (after beam runs) to include both in amplitude evluation.
+c In alpha growth calculations we recreate a file with the name Xin..mode. The 
+c code does it autmatically.
+      c46="ls -l eigenf | awk '{print $NF}' > /tmp/buff"
+      call system(c46)
+c make an egn..mode from it
+      c46="sed s/'egn'/'Xin'/ /tmp/buff > /tmp/buff1"
+      call system(c46)
+c open Xin..mode file, where Xin.. file has Xin01w.... name in it
+      open(11,file='/tmp/buff1',status='old')
+      read(11,*) c46
+      close(11)
+c try to read beam growth rates if this run is for alphas
+      iaddbeam=0
+      gwkwflrD=0.
+      if(ai.eq.4) then
+         iaddbeam=1
+         call system
+     &        ("sed s/'Xin'/'outd_egn'/ /tmp/buff1 > /tmp/buff")
+         open(11,file='/tmp/buff',status='old')
+         read(11,*)c246
+         close(11)
+         print *,'reading file ',c246
+         open(11,file=c246,status='old')
+         do while(c246(20:26).ne.'withFLR')
+            read(11,'(50a)',IOSTAT=ioch)c246
+c            print *,'reading outd',c246,gwkwflrD,c246(20:26)
+            if(ioch.ne.-1)then
+               continue
+            else
+               goto 122
+            endif
+         enddo
+         read(c246(27:50),*) gwkwflrD
+         write(*,*) 'D beam growth is ',gwkwflrD
+ 122     close(11)
+      endif
+c change its contents to add frequencies and growth rates
+      call system("sed s/'6 ;S'/'20 ;S'/ "//c46//" > /tmp/buff")
+c compute mode amplitude first
+      iA=amax1(indx(fplot(1,1,1),iberk,abs(gamkomflr/gdTot)),1)
+      iA=amin1(iA,iberk-3)
+      Ampl=0.
+      if((gamkomflr+gwkwflrD).gt.-gdTot) then
+         gamc=amax1(abs((gamkomflr+gwkwflrD)/gdTot),1.e-8)
+         call fun4(fplot(iA,1,1),dbob(iA),gamc,Ampl)
+      else
+         Ampl=amax1(1.e-8,Ampl)
+      endif
+      Ampl=Ampl/dbobmax
+      Ampl=amax1(dbob(1),Ampl)
+      Ampl=amin1(dbob(iberk),Ampl)
+      print *,'gL/gD',(gamkomflr+gwkwflrD)/gdTot,'Bgq/B0',Ampl,
+     & valfv,gwkwflrD
+      write(cgw(1:48),'(4e12.4)') abs(real(wtae))*1000*0.5/3.1415926,
+     &     Ampl,gamkomflr,gdTot
+      call system
+     &  ("sed s/' ;N'/'"//cgw(1:48)//" ;N'/ /tmp/buff > /tmp/buff1")
+      write(cgw,'(4e12.4)') grL,gCL,gHL,gTL
+      call system
+     &  ("sed s/' ;N'/'"//cgw//" ;N'/ /tmp/buff1 > /tmp/buff")
+      write(cgw,'(4e12.4)') gDL,geL,gecoll,gcontL
+      call system
+     &  ("sed s/' ;N'/'"//cgw//" ;N'/ /tmp/buff > /tmp/buff1")
+      write(cgw(1:24),'(2e12.4)') gwkwflrD,1.e7*valfv*2./(rma+rmi)
+      call system
+     &  ("sed s/' ;N'/'"//cgw(1:24)//" ;N'/ /tmp/buff1 > /tmp/buff")
+c this line should be carefully truncated
+      call system
+     &("sed s/'igrid;'/'igrid,gw[kHz],Xi;'/ /tmp/buff>/tmp/buff1")
+      call system
+     &("sed s/'Xi;'/'Xi[m],gwkwflr,gdTot,grad;'/ /tmp/buff1>/tmp/buff")
+      call system
+     &("sed s/'grad;'/'grad,gCL,gHL,gTL,gDL;'/ /tmp/buff>/tmp/buff1")
+      call system
+     &("sed s/'gDL;'/'gDL,geL,gecoll,gcont;'/ /tmp/buff1> /tmp/buff")
+      call system
+     &("sed s/'gcont;'/'gcont,gamD,rRvA[rs1];'/ /tmp/buff> k"//c46)
+c      return
+
+c_dev
+      if(ipf1.ge.npf.and.is1.ge.2)then
+         write(*,*)
+     &        'WARNING no resonance file, delete gam****.***',
+     &        ' file and rerun'
+      else
+c         pause
+         call dump_sat(bgy_sat,npf*nmu*(2*mtl_m1+1)*2*2,npf,nmu,
+     &     mtl_m1,ntae,real(wtae),qpf,pmu,dwp_sat,dwv_sat,
+     &     vres_sat,fdist_sat,gam_sat,vgam_sat)
+c_dev
+      endif
+      idumpdf=1
+      if(idumpdf.ne.0)then
+c_dev this part is to plot the distribution function at a chosen velocity
+c_dev Choose the velocity first by choosing index of v array from 1 to nv
+      if(tip.ne.'q')then
+c     this value corresponds roughly to half input energy of hot ions if
+c     ivc=nv/v(nv)*0.7
+         ivc=nv/v(nv)*0.7
+c but we have to choose it equal to the Alfven speed
+         ivc=nv*valfv/(v(nv)*vi)
+      else
+c     because of high normalized velocity in cql3d case we need to be
+c     closer to low values of the velocity index
+c and now we make it closer to the Alfven speed
+         ivc=nv*valfv/(v(nv)*vi)
+c          vi/valfv
+      endif
+c check if the fundamental resonance is outside of the velocity limits
+c     and if it is take 1/3, which is tipically in this limits,
+c     otherwise be  close to the latest one
+      if(ivc.ge.nv)ivc=ivc/3
+      ivc=min0(nv,ivc)
+      ivc=max0(2,ivc)
+      labtitle='distr.function'
+      open(unit=18,file='df_type_'//tip(1:1)//'.bdat',form='unformatted'
+     &     ,status='unknown')
+      imuax=indx(pmu(1),nmu,r0)
+      write(*,*) '*** in growth imuax=',imuax
+c choose Pphi index at R_LFS corresponding to the maximum of mode amplitude
+cnng      print *,'**** indx0,1',ratpsii(isrfmax,psii,bii),psii,bii,indx(qpf
+c     &     ,npf,psii),isrfmax
+      ratmax=ratpsii(isrfmax,psii,bii)
+      ipfmax=indx(qpf,npf,psii)
+cnng      print *,'**** indx0,1',qpf(ipfmax),psii,ipfmax
+      do iv=1,nv
+         do ipf=1,npf
+            do imu=1,nmu
+               do is=1,2
+                  sigm=1.
+                  if(is.eq.2) sigm=-1.
+ckg                  write(*,*) iv,ipf,imu,is
+                  call distrfun(ai,b0*b0oo,dfal,dfalpdv,dfalpdpsi,dpga
+     &                 ,eps,psiav(iv,imu,ipf,is),gam,hhh1,ihsps,iter
+     &                 ,qpf(ipf),p0ga,pmu(imu),rvpar,sigm,tb,tip,v(iv)
+     &                 ,vi,v(nv),0.,z0,xhp,zi,dwbdpphi,wb_res)
+ckg                  write(*,*) 'grprpl',iv,ipf,imu,is,v(iv)
+                  fplot1(imu,iv,is)=dfal+fplot1(imu,iv,is)
+                  if(iv.eq.ivc) fplot(ipf,imu,is)=dfal
+                  if(is.eq.2.and.iv.eq.ivc) fplot(ipf,imu,1)=fplot(ipf
+     &                 ,imu,1)+fplot(ipf,imu,2)
+c                  if(ipf.eq.ipfmax.and.(1.-pmu(imu)*bii/(r0*b0).gt.0.)
+                  if(ipf.eq.ipfmax)then 
+                     if(is.eq.1)then
+                        imui=nmu-imu+1
+                        isi=2
+                     else
+                        imui=imu
+                        isi=1
+                     endif
+                     gc2(imui,isi,nv)=sqrt(abs(1.-pmu(imu)*bii/(r0*b0)))
+     &                    *sigm
+                     fplot2(imui,isi,iv)=dfal
+                  endif
+               enddo
+            enddo
+         enddo
+ctune         print *, 'iv',iv,'df=',fplot(ipf/2,nmu/2,1),fplot(ipf/2,nmu
+c     &        /2,2),fplot1(nmu/2,iv,1),fplot1(nmu/2,iv,1)
+      enddo
+      write(18) npf,nmu,nv,2
+      write(18) r0,v(ivc),v(nv),vi,ratmax,psii,valfv
+      write(18) qpf
+      write(18) pmu
+      write(18) v
+      write(18) fplot
+      write(18) fplot1
+c output v||/v for the distribution function (next line) taken at the LFS point 
+      write(18) gc2
+      write(18) fplot2
+      close(18)
+      endif
+c_dev plot the df does not work due to double precision problem
+c      junk=0
+c      call shlocl_save(10,npf,nmu,fplot(1,1,1),fplot(1,1,2),qpf(1)
+c     &     ,qpf(npf),pmu(1),pmu(nmu),junk,labtitle,0.2,0.9,0.2,0
+c     &     .9)
+ckg_saturation
+c
+c
+      if(im1.eq.0)then
+ckg analytical estimates of fast ion contribution to m=1/n=1 stabilization
+         call gg_ae_theory(ihsps,immax,isrfmax,wtae,omstar
+     &        ,valfv/vi)
+      endif
+c      if(im1.eq.1.or.im1.eq.0) return
+c16.18282*ai**2*vi**4/xhp/zi/b0oo/b0/deltk
+c      do i=1,nmu
+c         gamintmu(i,1)=abs(gamintmu(i,1))
+c      enddo
+c      call twodgraf(pmu,gamintmu(1,1),nmu,1,col(1),pat(1),'white'
+c     $     ,2,'test','p_,m','gam/om','orbit',6,6,1,wd,0)
+c      call frame(0)
+      do i=1,npf
+c passing particles only without FLR and cutoff
+         gamintpfi(i,1,1)=abs(gamintpfi(i,1,1)-gtrap(i,1)+
+     &        gamintpfi(i,1,2))*2.*sqrt(abs(qpf(i)))
+c trapped particles only without FLR and cutoff
+         gtrap(i,1)=abs(gtrap(i,1))*2.*sqrt(abs(qpf(i)))
+         if(qpf(i).lt.0.) then
+            qpf(i)=-sqrt(abs(qpf(i)))
+         else
+            qpf(i)=sqrt(abs(qpf(i)))
+         endif
+      enddo
+c      stop ' stop in growth '
+c passing particles only without FLR and cutoff
+      call twodgraf(qpf,gamintpfi(1,1,1),npf,1,col(1),pat(1),'white'
+     $     ,2,'Passing_w/o_cutoff','sqrt(P_phi)'
+     &     ,'d(gam/om)/dsqrt(P_phi)','FOW',6,6,1,wd,0)
+      call frame(0)
+c trapped particles only without FLR and cutoff
+      call twodgraf(qpf,gtrap(1,1),npf,1,col(1),pat(1),'white'
+     $     ,2,'Trapped_w/o_cutoff','sqrt(P_phi)'
+     &     ,'d(gam/om)/dsqrt(P_phi)','FOW',6,6,1,wd,0)
+      call frame(0)
+      do i=1,npf
+         gamintpfi(i,1,1)=abs(gamintpfi(i,3,1)-gtrap(i,3)+
+     &        gamintpfi(i,3,2))*2.*abs(qpf(i)*gamkomhlp)
+         gtrap(i,1)=abs(gtrap(i,3))*2.*abs(qpf(i)*gamkomhlp)
+      enddo
+      if(tip.eq.'h'.or.tip.eq.'q'.or.tip.eq.'i'.or.tip.eq.'m'.or.tip.eq.
+     &     'e'.or.tip.eq.'r')return
+c      stop ' stop in growth '
+c passing particles only without FLR at cutoff
+      call twodgraf(qpf,gamintpfi(1,1,1),npf,1,col(1),pat(1),'white'
+     $     ,2,'Passing_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
+     &     ,'FOW',6,6,1,wd,0)
+      call frame(0)
+c trapped particles only without FLR at cutoff
+      call twodgraf(qpf,gtrap(1,1),npf,1,col(1),pat(1),'white'
+     $     ,2,'Trapped_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
+     &     ,'FOW',6,6,1,wd,0)
+      call frame(0)
+c      return
+      do i=1,npf
+         gamintpfi(i,1,1)=abs(gamintpfi(i,5,1)-gtrap(i,5)+
+     &        gamintpfi(i,5,2))*2.*abs(qpf(i))
+         gtrap(i,1)=abs(gtrap(i,5))*2.*abs(qpf(i))
+      enddo
+c      stop ' stop in growth '
+c passing particles only without FLR after cutoff
+      call twodgraf(qpf,gamintpfi(1,1,1),npf,1,col(1),pat(1),'white'
+     $     ,2,'Passing_za_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
+     &     ,'FOW',6,6,1,wd,0)
+      call frame(0)
+c trapped particles only without FLR after cutoff
+      call twodgraf(qpf,gtrap(1,1),npf,1,col(1),pat(1),'white'
+     $     ,2,'Trapped_za_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
+     &     ,'FOW',6,6,1,wd,0)
+      bmax=0.
+      return
+      end

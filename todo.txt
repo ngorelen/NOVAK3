@@ -1,0 +1,25 @@
+-add FLR k_rad accurate computation in NOVAK3 to account for radial
+ structure of the mode
+
+-add delta Te / Te fluctuation graph to NOVA mhdst program
+
+-add psi dependence to the distrib. function input
+
+-add FLR effect by averaging the phase numerically exactly,
+ or taking some equation to simplify the formulation. 
+
+-consistency check: if beta_beam = 0, give a warning or stop the
+ program. 
+
+-rotation in simple version
+
+-distrib. function in a sofisticated form.
+
+-add to NOVAK the Python module wrapper
+-add quasilinear diffusion and stability modules
+
+-add ion Landau damping
+-allow second call of the growth rate program
+
+-allow simultaneous runs: change equot to equot_n12w1234 and
+ gam_n12w1234 ...

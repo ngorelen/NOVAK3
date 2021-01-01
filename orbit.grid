@@ -1,0 +1,2 @@
+      parameter (nv=40,nmu=150,npf=200)
+c      parameter (nv=40,nmu=100,npf=100)

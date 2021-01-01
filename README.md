@@ -87,7 +87,7 @@ The results should be similar/same as in the file
  beta_hcrit=-beta_h*(all dampings above)/gam_h or 
  beta_hcrit=-beta_h*(all dampings above)/gam_hFLR or 
 
-4. ultimate result can be checked with the transp run for TFTR case,
+5. ultimate result can be checked with the transp run for TFTR case,
    which is published in ~/work/PAPERS/Gorelenkov_PoP99_nlin.pdf
 
    On the cluster all the results are in ~/work/nova/tftr_103101

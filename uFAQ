@@ -1,0 +1,19 @@
+- Often when equilibrium is not good, such as in the case of Boozer
+  coordinates and high beta, like in NSTX, you can see a lot of warnings
+  like   
+
+  Warning in minorrad 1 219 ...
+
+  this is typically due to bad mapping of the equilibrium. 
+  
+  In this case it could be that | grad Psi |^2 is negative, or first
+  radial points are too far apart due to the grid taken monotonic in
+  Psi, rather than to be monotonic in sqrt(psi) recommended. 
+
+  Try to improve equilibrium mapper. In general Boozer coordinates are
+  not recommended. 
+
+- another problem is that the continuum program breaks. The reason is 
+  possibly that the grid is too dense near the center. One fix is to 
+  make it more sparse. One example of such sparse grid is in the 
+  gridparam file with smaller size. 

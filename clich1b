@@ -1,0 +1,64 @@
+c
+ccc  density is in #/cm**3, temperature is in eV, 
+ccc  pressure is normalized with magnetic field, z is particle charge
+      common/plas/denc0(ispc),tc0(ispc),pc0(ispc),vc0(ispc)
+     &,betac0(ispc),rmcp(ispc),zc(ispc),wcc(ispc),pcs(ispc)
+
+     &,denh0(isph),th0(isph),ph0(isph),vh0(isph),phs(isph)
+     &,ehc0(isph),ech(isph)
+     &,betah0(isph),rmhp(isph),zh(isph),wch(isph)
+     &,ihdist(isph),ihdir(isph),galh0(isph),dhlamda(isph)
+
+     &,denr0(ispr),tr0(ispr),pr0(ispr),vr0(ispr),prs(ispr)
+     &,betar0(ispr),rmrp(ispr),zr(ispr),wcr(ispr)
+     &,irdist(ispr),galr0(ispr),drlamda(ispr)
+     &,beta0,rho0,valpha,iden,prho,arho,arho1,arho2,alphar
+     &,ascale,hscale
+ckg
+     &,alpharh,prhoh,arhoh,alphart,prhot,arhot
+
+      common/prfi/trgrid(nn),tqprf(nn),tbeta(nn),betaa(nn)
+     &,denc(nn,ispc),tc(nn,ispc),pc(nn,ispc)
+     &,wstarc(nn,ispc),wstartc(nn,ispc)
+     &,denh(nn,isph),th(nn,isph),ph(nn,isph)
+     &,ehc(nn,isph),chprf(nn,isph),eha(nn,isph)
+     &,wstarh(nn,isph),wstarth(nn,isph)
+     &,denr(nn,ispr),tr(nn,ispr),pr(nn,ispr)
+     &,crprf(nn,ispr),era(nn,ispr)
+     &,wstarr(nn,ispr),wstarrc(nn,ispr)
+
+      common/prfip/
+     & dencp(nn,ispc),tcp(nn,ispc),pcp(nn,ispc),pwsc(nn,ispc)
+     &,denhp(nn,isph),thp(nn,isph),php(nn,isph),pwsh(nn,isph)
+     &,ehcp(nn,isph),chpprf(nn,isph),driveh(nn,isph)
+     &,denrp(nn,ispr),trp(nn,ispr),prp(nn,ispr),pwsr(nn,ispr)
+     &,ercp(nn,ispr),crpprf(nn,ispr),driver(nn,ispr)
+
+      common/param/
+     & cstrc(ispc),cdstc(ispc),cbouc(ispc),ccirc(ispc)
+     &,cstrh(isph),cdsth(isph),cbouh(isph),ccirh(isph)
+     &,cstrr(ispr),cdstr(ispr),cbour(ispr),ccirr(ispr)
+
+      common/stabp/
+     & cctr(ispc),ccci(ispc)
+     &,grwct(ispc),grwcc(ispc),grwc(ispc)
+     &,chtr(isph),chci(isph)
+     &,grwht(isph),grwhc(isph),grwh(isph)
+     &,gr0ch(isph),gr0bh(isph)
+     &,wabh0(isph),wach0(isph)
+     &,wabh00(isph),wabh01(isph),wach0p(isph),wach0m(isph)
+     &,gr0bh0(isph),gr0bh1(isph),gr0chp(isph),gr0chm(isph)
+     &,crtr(ispr),crci(ispr)
+     &,grwrt(ispr),grwrc(ispr),grwr(ispr)
+    
+      common/prfj/ptot(nn),zeff(nn)
+     &,alnc(nn,ispc),alnh(nn,isph),alnr(nn,ispr)
+     &,rkhc(nn,isph),iphc(nn,isph)
+     &,ghprf(nn,isph),gph(nn,isph)
+     &,rkrc(nn,ispr),iprc(nn,ispr)
+     &,grprf(nn,ispr),gpr(nn,ispr),gprp(nn,ispr)
+
+c
+      character egn*15
+      common/switch/iswitch,itransp,egn
+c

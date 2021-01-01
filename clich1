@@ -1,0 +1,16 @@
+c
+cc...  use parameters ..  nsf=nsf from dmap code
+cc.....   use parameter   nn=nosurf from dmap code
+cc...                     nts=nths from dmap code
+	include 'gridparam'
+	include 'clichlmax'
+      parameter(nogrid=nmbrgrd,nts0=mnths0,nsf=nogrid,nts=nts0+5)
+      parameter(minm=minm_1,maxm=maxm_1,mt=maxm-minm+1,mt2=mt*2)
+      parameter(jmin=minm-2,jmax=maxm+2,jt=jmax-jmin+1,jt2=jt*2)
+      parameter(jcmin=minm,jcmax=maxm,jb=8,jc=jcmax-jcmin+mt)
+      parameter(jcc=jcmax-jcmin+1)
+cccc   nn=nosurf
+      parameter(nn=nogrid)
+      parameter(lam=48,nthetaj=40)
+      parameter(lamc=lam)
+      parameter(ispc=5,isph=3,ispr=1,ict=5,iht=3,irt=1)

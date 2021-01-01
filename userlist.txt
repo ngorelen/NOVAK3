@@ -1,0 +1,8 @@
+Institution	Signed_Agreement	Use_of_Sources	Runs_on_our_cluster
+
+GA		 yes			yes		yes
+Zhejang U.,China yes			yes		no
+
+MIT		 no			no		yes
+UCLA		 no			no		yes
+JAERI		 no			no		yes

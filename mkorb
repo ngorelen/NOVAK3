@@ -1,0 +1,112 @@
+# you can put some extra flags with the variable in the gmake command line:
+# gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-g" or DB="-D _test -g"
+# or use --chk for lfc compiler to check the boundaries of arrays
+#
+# Employ preprocessor command with the following flag 
+# gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D _dev" to activate extras, such as matrix tensor
+# 									or test key, itest
+# gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D dumpdf" to dump EP distribution function
+#    or 
+# rm tae.o orbit2d.o; gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D xTebf=0.51" to multpl Te by 0.51
+# the above flags could be combined such as DB="-D _dev -D xTebf=0.51" if needed
+# for RBQ do this:
+#     	  rm growth_prpl.o
+#	  gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D _dev -D dumpdf" ! since gghN is recorded, be sure it is computed well
+#	  and make sure for RBQ2D you have pk=0.5 in NOVA_param
+#
+os:= $(shell uname -s)
+arch:= $(shell uname -m)
+MACH    =$(os)$(arch)
+SRC	=/u/ngorelen/SRC/NOVAK3/
+WRK	=$(PWD)
+GRAPH	=ncar2pgplot
+SRC_dep	=$(WRK)/
+ZIO	=/u/ngorelen/SRC/Equil/
+DB=
+#
+# petrels AMD linux option
+ifeq ($(FC),gfortran)
+  FFLAGS=-cpp -I$(WRK) -O2 -fno-backslash -I$(PWD) -fdefault-double-8 -fdefault-real-8 -fdefault-integer-8   # -O -I$(WRK) --dbl --long -c -o 
+  LINK.f =gfortran -w ${DB} $(FFLAGS) -L/usr/X11R6/lib/ 
+  FC	:=gfortran -w ${DB} $(FFLAGS) -c -o
+  FCG	:=$(FC)
+  OBJ   =wopen.o
+endif
+ifeq ($(FC),lfc)
+  FFLAGS=-Cpp -O -I$(WRK) --dbl --long -c -o 
+  FC	=lfc ${DB} $(FFLAGS)
+  FCG	=lfc ${DB}  -c -o 
+  LINK.f=lfc --model medium ${DB} -L/usr/X11R6/lib64/ 
+  OBJ   =wopen.o
+endif
+Cmod = clib.o
+  OBJ     :=orbit2d.o orbitm2d.o orbit2dlib.o  $(OBJ) $(GRAPH).o \
+            nag_lcl.o $(Cmod) frequency.o w_tw_s.o growth_prpl.o
+ifdef PGPLOT_DIR
+else
+PGPLOT_DIR=/usr/local/pgplot
+endif
+#PGPLOT_DIR=/usr/pppl/lff95/6.20c/pgplot-5.2.2/
+
+ifdef DB
+	Exe=_dev
+endif
+gotae3${Exe}:		$(OBJ) tae.o taem.o\
+		orbit2d_prpl.o\
+		mpgplot.o lorentzdf.o
+		$(LINK.f) -o $@ $(OBJ) mpgplot.o  \
+		tae.o taem.o orbit2d_prpl.o\
+		lorentzdf.o -L$(PGPLOT_DIR)\
+		-lpgplot -L/a/usr/ntcc/lff95/lib -lX11
+#		mpgplot.o -lpgplot -lX11
+orbit2dlib.o:	$(SRC)orbit2dlib.f $(SRC)clich2\
+	                $(SRC)orb2d.par $(SRC)clich1\
+			$(SRC_dep)clichlmax $(SRC_dep)gridparam
+			$(FC) orbit2dlib.o  $(SRC)orbit2dlib.f
+$(GRAPH).o:	        $(SRC)$(GRAPH).f
+		        $(FCG) $(GRAPH).o $(SRC)$(GRAPH).f
+mpgplot.o:	/u/ngorelen/pgplot/mpgplot.f
+		$(FCG) mpgplot.o /u/ngorelen/pgplot/mpgplot.f
+
+orbit2d.o:	$(SRC)orbit2d.f $(SRC)clich1b $(SRC)clich2\
+	                $(SRC)orb2d.par $(SRC)clich1 $(SRC)orbit.grid\
+			$(SRC_dep)clichlmax $(SRC_dep)gridparam 
+			$(FC) orbit2d.o  $(SRC)orbit2d.f
+orbitm2d.o:	$(SRC)orbitm2d.f $(SRC)clich1b $(SRC)clich2\
+	                $(SRC)orb2d.par $(SRC)clich1\
+			$(SRC_dep)clichlmax $(SRC_dep)gridparam
+			$(FC) orbitm2d.o $(SRC)orbitm2d.f
+orbit2d_prpl.o:	$(SRC)orbit2d_prpl.f $(SRC)clich1b $(SRC)clich2\
+	                $(SRC)orb2d.par $(SRC)clich1 $(SRC)orbit.grid\
+			$(SRC_dep)clichlmax $(SRC_dep)gridparam
+			$(FC) orbit2d_prpl.o  $(SRC)orbit2d_prpl.f
+tae.o:		$(SRC)tae.f $(SRC)clich1b $(SRC)clich2\
+	                $(SRC)clich1a $(SRC)clich1\
+			$(SRC_dep)clichlmax $(SRC_dep)gridparam
+			$(FC) tae.o $(SRC)tae.f
+bzio_hydra.o:	        $(ZIO)/bzio_hydra.f
+			$(FC) bzio_hydra.o $<
+bzio_w2z.o:		$(ZIO)bzio_w2z.f $(ZIO)unitnumber
+			$(FC) bzio_w2z.o $(ZIO)bzio_w2z.f
+wopen.o:		$(ZIO)wopen.f
+			$(FC) $@ $<
+taem.o:		$(SRC)clich1b $(SRC)clich2 $(SRC)taem.f $(SRC)clich1\
+			$(SRC_dep)clichlmax $(SRC_dep)gridparam
+			$(FC) taem.o $(SRC)taem.f
+frequency.o:		$(SRC)frequency.f
+			$(FC) $@ $<
+growth_prpl.o:		$(SRC)growth_prpl.f $(SRC)orbit.grid
+			$(FC) $@ $<
+w_tw_s.o:		$(SRC)w_tw_s.f $(SRC)clich1\
+			$(SRC)clich2 $(SRC)clich1b $(SRC)orb2d.par
+			$(FC) $@ $<
+nag_lcl.o:	$(SRC)nag_lcl.f $(SRC)clich1
+			$(FC) nag_lcl.o $(SRC)nag_lcl.f
+$(SRC_dep)gridparam:	
+			cp $(SRC)gridparam.bak $(SRC_dep)gridparam
+$(SRC_dep)clichlmax:	
+			cp $(SRC)clichlmax.bak $(SRC_dep)clichlmax
+clib.o:			$(SRC)clib.c
+			gcc -pedantic -O -o $@ -c $^
+lorentzdf.o:		$(SRC)lorentzdf.c
+			gcc -pedantic -O -o $@ -c $^
