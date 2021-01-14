@@ -555,7 +555,7 @@ c      write(*,*) '2 gam/om,gamflr/om,omr/om,omrflr/om',gamkom,gamkomflr
 c     &     ,omkom,omkomflr
 ckg19 radiative damping of RSAEs by Y.Wang
 ckg
-      call RD_RSAE(immax)
+      if(itransp.eq.1) call RD_RSAE(immax)
       if(im1.eq.1) then
 ckg analytical estimates of fast ion contribution to m=1/n=1 stabilization
 ckg see w_tw_s program in tae.f file for comments on how it is done

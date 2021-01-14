@@ -7159,6 +7159,7 @@ c2d  977 continue
 c   prepare for spline fitting
       call splprp(rsdat,ndat)
 c2d      call depose(rhodat,spcd)
+      close(io)
       return
  33   write(*,*) sc
       write(*,*) '--> above line should match ndat, which is:',
@@ -7326,7 +7327,7 @@ ckg this is subroutine used to calculate radiative damping accroding to paper Li
 ckg Written By Yahui Wang
 ckg date: Oct. 9, 2019
 ckg POP, Kinetic damping of Alfven eigenmodes in general tokamak geometry.
-ckg clindrial coordinate is needed.
+ckg clindrial coordinate is needed; and itransp=1 is needed
 
       subroutine RD_RSAE(immax)
       include 'clich1'
@@ -7380,6 +7381,8 @@ ckg clindrial coordinate is needed.
      >,betath(ndat),betaadat(ndat),pthdat(ndat)
 c      common/dat/fluxp(ndat),rdat(ndat),rhodat(ndat)
       write(*,*) "call RD_RSAE"
+      dqdr=0.
+      dq2dr=0.
       open(137,file='datcon',status='old')
 c here om is TAE eigenvalue from NOVA code (omega**2)
 ckg      write(6,*)"input om"
@@ -7410,10 +7413,10 @@ c
       write(*,*)'omreal in unit of (Hz) is',omreal*va/rmaj/qprf(nn)
      &   /twopi
 
-      do jx=1,nn,1
+!      do jx=1,nn,1
 !        write(*,*)jx,rgrid(jx),grpssq2d(jx,1),grpssq2d(jx,mth/2)
-
-      enddo 
+!
+!      enddo 
 
       rr00=(rr(1,1)+rr(1,mth/2+1))*0.5
       zz00=(zz(1,1)+zz(1,mth/2+1))*0.5
@@ -7515,6 +7518,7 @@ c      close(1001)
 !     &  (jx-1))*4.0/(rmin(jx+1,mth/2+1)-rmin(jx-1,mth/2+1))**2.0
 !        dq2dr(jx)=(qprf(jx+1)-2.0*qprf(jx)+qprf
 !     &  (jx-1))*4.0/(rmin(jx+1,1)-rmin(jx-1,1))**2.0
+c         if(jx.eq.nn-1) pause
         dq2dr(jx)=2.0*(deltar(jx,mth/2+1)*qprf(jx+1)+deltar
      &   (jx+1,mth/2+1)*qprf(jx-1)-(deltar(jx,mth/2+1)+deltar
      &   (jx+1,mth/2+1))*qprf(jx))/((deltar(jx,mth/2+1)+deltar
@@ -7524,6 +7528,7 @@ c      close(1001)
      &   (jx+1,1)*qprf(jx-1)-(deltar(jx,1)+deltar(jx+1,1))*qprf(jx))
      &   /((deltar(jx,1)+deltar(jx+1,1))*deltar(jx,1)*deltar(jx+1,1))
        temp2=dq2dr(jx)
+c       print *,'jx,dq2dr; 1st',jx,dq2dr(jx),temp1,temp2
        dq2dr(jx)=(temp1+temp2)/2.0 
 ! dq2dr in unit of (1/m^2)
 ! rr in unit of (m)
@@ -7540,6 +7545,7 @@ c      close(1001)
      &   **2.0*grpssq2d(jx-1,1)-(deltarsq(jx)**2.0-deltarsq(jx+1)**2.0)*
      &  grpssq2d(jx,1))/(deltarsq(jx+1)**2.0*deltarsq(jx)+deltarsq(jx)
      &  **2.0*deltarsq(jx+1))
+c       print *,'jx,dq2dr; 2st',jx,dq2dr(jx),fluxp(ndat),fluxp(1),rb0
         dq2dr(jx)=dq2dr(jx)/(fluxp(ndat)-fluxp(1))**2.0
      &    *(rb0)**2.0
        temp1=dq2dr(jx)
@@ -7593,10 +7599,11 @@ c      close(1001)
      &  ((minm+immax-1)/r_min)**2.0))
 
 !      rho_s=sqrt((tc(gqmin,1)/tc(gqmin,2)+0.75)*rho_i**2.0)
-      write(*,*)tc(gqmin,1),tc(gqmin,2),denc(gqmin,1),denc(gqmin,2)
-      write(*,*)th(gqmin,1),th(gqmin,2),th(gqmin,3),denh(gqmin,1)
-     &  ,denh(gqmin,2),denh(gqmin,3)
-      write(*,*)rho_i,rho_s,rho_sp
+      write(*,*)'Tc,Nec',tc(gqmin,1),tc(gqmin,2),denc(gqmin,1),
+     &     denc(gqmin,2)
+      write(*,*)'Th123,Nh123',th(gqmin,1),th(gqmin,2),th(gqmin,3),
+     &     denh(gqmin,1),denh(gqmin,2),denh(gqmin,3)
+      write(*,*)'gri,grs,grsp',rho_i,rho_s,rho_sp
       write(*,*)tc(gqmin,1)/tc(gqmin,2)*rho_i**2.0,+0.75*rho_i**2.0,
      & denh(gqmin,1)/denc(gqmin,1)*rho_sp**2.0/(1.0+rho_sp**2.0*
      &  ((minm+immax-1)/r_min)**2.0)         
@@ -7607,8 +7614,12 @@ c      close(1001)
      &  /qprf(gqmin))/rmaj *((omreal)**2.0
      &  -w1(gqmin))/(w1(gqmin)*(r_min)**2.0
      &  *dq2dr(gqmin))
-      rad_damp=coeff_rad(1)*s_eign*exp(-coeff_rad(2)*s_eign/
-     &  sqrt(abs(lambda_eign)))
+      if(abs(lambda_eign).lt.1.e-6)then
+         rad_damp=0.
+      else
+         rad_damp=coeff_rad(1)*s_eign*exp(-coeff_rad(2)*s_eign/
+     &        sqrt(abs(lambda_eign)))
+      endif
 
       write(*,*)"ntor=",ntor
       write(*,*)"m=",minm+immax-1
@@ -7619,7 +7630,7 @@ c      close(1001)
       write(*,*)"omreal",omreal,omreal*va/rmaj/qprf(nn)/twopi
       write(*,*)"omega_A",sqrt(w1(gqmin)),
      &           sqrt(w1(gqmin))*va/rmaj/qprf(nn)/twopi 
-      write(*,*)"dq2dr,rho_s",dq2dr(gqmin),rho_s
+      write(*,*)"dq2dr,rho_s,gqmin",dq2dr(gqmin),rho_s,gqmin
       write(*,*)"lambda_eign=",lambda_eign
       write(*,*)"S_eign=",S_eign
       write(*,*)"The ratio of Radative damping to wave frequency is:"

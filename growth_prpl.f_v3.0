@@ -236,7 +236,7 @@ c rotation frequencies are read in my units 10^6 rad/sec^-1
      &        '?????????warning:  Your particle weight is uncommon'
       endif
       open(unit=18,err=10,file=filename,status='old')
-c      read(18,*,err=10,end=10) is1,ipf1
+      read(18,*,err=10,end=10) is1,ipf1
       read(18,*,err=10,end=10) gamkomis,omkomis,gtrap1
       if(is1.eq.1)call zero(omkomis(1),2)
       read(18,*,err=10,end=10) gamintpfi
@@ -1552,8 +1552,8 @@ c define indexes to the most of possible array indexes
 c change of plans: do this for the whole resonance, not at specific ipf
       ires=1
 c    idlt=4 ! this is for 2*4+1 = 9 harmonics to be accounted for in RBQ analysis 
-      idlt=3 ! this is smaller but sufficient to get 7 harmonics for RBQ runs
-      idlt=12 ! this is for 2*12+1 = 25
+      idlt=3 ! this is smaller but sufficient to get 7 harmonics for RBQ runs: nlc=7
+c      idlt=12 ! this is for => nlc = 2*12+1 = 25
       i1D=1                     !this is equidistant in velocity, which is for 1D case
       if(pk==0.5) then
          i1D=2                  !this is equidistant in energy, which is for 2D case
@@ -1645,7 +1645,8 @@ c     find approximate polynomial expansions at the resonance along the P_phi di
 c     and along the slanted direction involving both v and P_phi
 c         this loop is entered each time for each harmonics and if there is a resonance
                do ipf=1,npf
-                  if(vres_sat(ipf,imu,il,ires,is).gt.0.001) then
+                  if((vres_sat(ipf,imu,il,ires,is).gt.0.001).and.(ipf.lt
+     &          .npf).and.(vres_sat(ipf+1,imu,il,ires,is).gt.0.001))then
                      ifail=0
                      if( i1D == 1 ) then
                         call wresminimize(wresPfiV(1,1),dwp_sat(ipf,imu,
@@ -1654,6 +1655,7 @@ c         this loop is entered each time for each harmonics and if there is a re
      ^                       ,npf,nv,qpf,v ,qpf(ipf),vres_sat(ipf,imu,il
      ^                       ,ires,is),  0.  ,wb(1,1,1,is),ifail)
                      else
+c                        if(ipf.eq.5.and.is.eq.1) pause
                         call wresminimize(wresPfiV(1,1),dwp_sat(ipf,imu,
      ^                       il,ires,is),dwpmnmz_sat(ipf,imu,il,ires,is)
      ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),nmu,imu
