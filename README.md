@@ -35,7 +35,11 @@ contributions to the Bessel function.
 	/u/ngorelen/work/exe/contmap4u.py Out/contmap.u4m
 
 after this it generates the default parameter file for NOVA-K, which is
-NOVA_param
+NOVAK_param
+
+other parameter file is clich1b; it contains mass, charge of EPs; in
+support of RBQ we keep there CONDEF, CONDE, CONDI, one fluid eff,
+electr, ion thermal ion conductivities.
 
 It contains all the information required to run the the NOVA-K. Check
 this file change the appropriate parameters to what you need (it has
@@ -46,7 +50,7 @@ should be ntor=3.
 
 If transp.dat (taefl.txt) is read then it is used to read rmaj,amin,B0
 
-Comments on the types of the distribution function (dtype in NOVA_param
+Comments on the types of the distribution function (dtype in NOVAK_param
 file) are in the taem.f of the source file. They are also at the end of
 this document. 
 
@@ -125,16 +129,23 @@ c         trapped ion with bounce tip at the magnetic axis has p=1. For
 c         example for ICRH at res.layer at R, chidelt(1)=R/Raxis, 
 c         chidelt(2)=dR/Raxis, where dR is width of the res.layer
 c         chidelt(i) array is from the NOVA_param file under the chi0 name
-c	'h' He3 minority related input works if in NOVA_param ihsps=2, ai=3, zi=2, and tip='h'.
+c	'h' He3 minority related input works if in NOVA_param 
+c	    (ihsps=2 is not important, any #, 1,2,3 will do) ai=3, zi=2, and tip='h'.
+c          checked for on sparc_12345I64 with the information read from transp.dat file
+c          by variables
+c           tmini_3     HE3 ICRF MINORITY 2/3<E>         EV              :X 
+c           nmini_3     HE3 ICRF MINORITY DENSITY        EV              :X 
 c     'i' is similar to 'h' option for ICRF but with H temperature read 
-c         from transp.dat file. Central Th0 is given in NOVA_param file.
-c         This option works so far with transp input, i.e. itransp=1 in NOVA_param.
+c         from transp.dat file: if tip(1:1).eq.'i'.and.int(szh).eq.1
+c           tmini_h     H ICRF MINORITY 2/3<E>  
+c           nmini_h     H ICRF MINORITY DENSITY 
+c         Those two option 'h','i' work so far with transp input, i.e. itransp=1 in NOVA_param.
 c     'r' this symbol is for special distribution function for START shot
 c         #35305 at 26.3 ms for the form see subroutine DISTRFUN
 c     'g' (i recommend to use 'l' option, which is better. Lorentz model
 c         'g' option is not good for really wide distributions. )
 c         is for general form in Gaussian pitch angle with velocity
-c         dependent width, so that parameters are read from NOVA_param
+c         dependent width, so that parameters are read from NOVAK_param
 c         file with slowing down in velocity. 
 c         f ~ exp(-(chi-chidelt(1))^2/dchi^2), where chi = v_||/v on the LFS
 c         dchi^2=chidelt(2)+sqrt(psi)*chidelt(3)-
@@ -159,10 +170,10 @@ c         is to be read it is advised to make a soft link to it.
 c         In this case the temperature of this specie is read from cql3d
 c         data file and supersedes the transp or analytical values. 
 c         It is also important that its maximum value is normalized to 
-c         the NOVA_param file value for particle energy to be more flexible 
+c         the NOVAK_param file value for particle energy to be more flexible 
 c         in physics studies. 
 c         Particle mass is read from cql3d file too - set up in cql3dinit.f90.
-c         In case of itransp=0(analytical profiles) betah0 is read from NOVA_param
+c         In case of itransp=0(analytical profiles) betah0 is read from NOVAK_param
 c         Particle charge is set to 1 in the same subroutine.
 c
 c     'o' is to skip fast ions with FOW effects
@@ -174,7 +185,7 @@ c                           (UBPRP_T/2+UBPAR_T) for tritium beams
 c                           (UFIPP/2+UFIPA) for fusion ions
 c                           ((UFASTPP-UBPRP_D-UBPRP_T-UFIPP)/2+(UFASTPA-UBPAR_D-UBPAR_T-UFIPA))
 c                           for H-minority fast ions if ihsps=3 and its mass set to 1
-c     Type of distribution function ('tip') can be changed in NOVA_param
+c     Type of distribution function ('tip') can be changed in NOVAK_param
 c     file, which is generated automatically at first start
 c     Variable im1 is 0 for normal stability runs of *AE
 c                     1     ideal kink modes with w=0

@@ -3216,7 +3216,8 @@ c      parameter(ndat=40)
      >,ubtper(ndat),ufipa(ndat),ufipp(ndat),uphi(ndat)
      >,ufastpa(ndat),ufastpp(ndat),utot(ndat)
      >,ftotdt(ndat),ttntx(ndat)
-     >,betath(ndat),betaadat(ndat),pthdat(ndat)
+     >,betath(ndat),betaadat(ndat),pthdat(ndat),condic(ndat)
+     >,condec(ndat)
 c2d     >,dvol(ndat),darea(ndat),surfa(ndat)
       common / chnel / iodat,iomode,iomap1,ioequ1,mp0,mp1,mp2,iotty
 

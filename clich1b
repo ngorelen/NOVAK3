@@ -16,6 +16,7 @@ ccc  pressure is normalized with magnetic field, z is particle charge
      &,ascale,hscale
 ckg
      &,alpharh,prhoh,arhoh,alphart,prhot,arhot
+     &,conde(nn),condi(nn)
 
       common/prfi/trgrid(nn),tqprf(nn),tbeta(nn),betaa(nn)
      &,denc(nn,ispc),tc(nn,ispc),pc(nn,ispc)

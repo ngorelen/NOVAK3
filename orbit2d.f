@@ -1893,16 +1893,17 @@ c     &     ,dfalpdpsi
       return
       end
 c*********************************************************
-      subroutine eigenmod(b0oo,b0,dbobmax,dbobmaxs,dnonmax,grps2,
-     &     rgridc,min,min_f,max,max_f,ntae,scalvavf,valfv,wtae,deltk,
-     &     ximax)
+      subroutine eigenmod(b0oo,b0,condec,condic,dbobmax,dbobmaxs,
+     &     dnonmax,grps2,rgridc,min,min_f,max,max_f,ntae,scalvavf,
+     &     valfv,wtae,deltk,ximax)
       include 'clich1'
       include 'clich2'
       include 'clich1b'
       include 'orb2d.par'
       common/functn/omreal,eigfun(nn,mt,3),eigfun_s(nn,mt,3)
       common/funct/xkpop(nn,mt,nts,3)
-      dimension delkintgr(nn),grps2(1000),rgridc(1000)
+      dimension delkintgr(nn),grps2(1000),rgridc(1000),
+     &     condec(1000),condic(1000)
       complex wtae
 ccc  choose the sign of om to be same as alpha's wstar to get instability
 ccc  for n>0, om=-omreal; for n<0, om=omreal, the former is usual
@@ -1926,6 +1927,8 @@ c      valfv=2.18e6*scalvavf*b0oo*rax/r/sqrt(rho0)
          if(i.gt.3) delkintgr(i)=delk(i)*rhoprf(i)*rgrid(i)
          grps2(i)=0.5*(grpssq2d(i,nts0/2)+grpssq2d(i,1))
          rgridc(i)=rgrid(i)
+         condec(i)=conde(i)
+         condic(i)=condi(i)
       enddo
       call asimp(rgrid(4),delkintgr(4),nosurf-3,deltk)
       deltk=deltk*abs(wtae)**2*1.e-2*psitot*rho0*2./scalvavf**2

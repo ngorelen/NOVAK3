@@ -28,8 +28,8 @@ DB=
 ifeq ($(FC),gfortran)
   FFLAGS=-cpp -I$(WRK) -O2 -fno-backslash -I$(PWD) -fdefault-double-8 -fdefault-real-8 -fdefault-integer-8   # -O -I$(WRK) --dbl --long -c -o 
   LINK.f =gfortran -w ${DB} $(FFLAGS) -L/usr/X11R6/lib/ 
+  FCG	:=$(FC) ${DB} -c -o
   FC	:=gfortran -w ${DB} $(FFLAGS) -c -o
-  FCG	:=$(FC)
   OBJ   =wopen.o
 endif
 ifeq ($(FC),lfc)

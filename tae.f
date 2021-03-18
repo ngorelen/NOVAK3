@@ -2344,7 +2344,7 @@ c
       end
 ccccc.........
 c the difference with the inprofa from NOVAK is in the analytic profiles for alphas ph(i,{1,2,3})
-c it is left compatible with the NOVA_param file specification
+c it is left compatible with the NOVAK_param file specification
       subroutine inprofa
 c
 cccc.....   define all radial profiles
@@ -5935,6 +5935,9 @@ c      parameter(ndat=40,ndat2=ndat+2)
      >,ptotdat(ndat),qdat(ndat),betadat(ndat)
      >,dedat(ndat),dddat(ndat),dtdat(ndat),dzdat(ndat),dhdat(ndat)
      >,dhmindat(ndat),dbddat(ndat),dbtdat(ndat),dadat(ndat)
+     +,dhe3(ndat),aimpj(ndat),xzimpj(ndat)
+     +,eminper_h(ndat),eminpar_h(ndat),eminper_3(ndat)
+     +,eminpar_3(ndat),tmini_3(ndat),fnmini_3(ndat)
      >,tedat(ndat),tddat(ndat),ttdat(ndat),tzdat(ndat),thdat(ndat)
      >,thmindat(ndat),pbddat(ndat),pbtdat(ndat),padat(ndat)
      >,fluxt(ndat),fluxp(ndat),rtsdat(ndat),shift(ndat)
@@ -5943,7 +5946,8 @@ c      parameter(ndat=40,ndat2=ndat+2)
      >,ubtper(ndat),ufipa(ndat),ufipp(ndat),uphi(ndat)
      >,ufastpa(ndat),ufastpp(ndat),utot(ndat)
      >,ftotdt(ndat),ttntx(ndat)
-     >,betath(ndat),betaadat(ndat),pthdat(ndat)
+     >,betath(ndat),betaadat(ndat),pthdat(ndat),condic(ndat)
+     >,condec(ndat)
 
 ccc read radial profiles from TRANSP data
 c moved to datin_pest for consistency with reading taefl.txt file open(10,file='transp.dat',status='old')
@@ -5998,6 +6002,9 @@ c H minority temperature, valid only if tip='i' and set in inprofe
       call intspl(nosurf,ndat,ndat2,padat,ph(1,3),rgsq(1))
 ckg this array is not actually used
       call intspl(nosurf,ndat,ndat2,betaadat,betaa(1),rgsq(1))
+cnng21 introducing thermal ion and electron conductivity
+      call intspl(nosurf,ndat,ndat2,condec,conde(1),rgsq(1))
+      call intspl(nosurf,ndat,ndat2,condic,condi(1),rgsq(1))
 c           rewind 10
 c
    99 format(5e14.5)
@@ -6565,6 +6572,9 @@ c      parameter(ndat=40)
      >,ptotdat(ndat),qdat(ndat),betadat(ndat)
      >,dedat(ndat),dddat(ndat),dtdat(ndat),dzdat(ndat),dhdat(ndat)
      >,dhmindat(ndat),dbddat(ndat),dbtdat(ndat),dadat(ndat)
+     +,dhe3(ndat),aimpj(ndat),xzimpj(ndat)
+     +,eminper_h(ndat),eminpar_h(ndat),eminper_3(ndat)
+     +,eminpar_3(ndat),tmini_3(ndat),fnmini_3(ndat)
      >,tedat(ndat),tddat(ndat),ttdat(ndat),tzdat(ndat),thdat(ndat)
      >,thmindat(ndat),pbddat(ndat),pbtdat(ndat),padat(ndat)
      >,fluxt(ndat),fluxp(ndat),rtsdat(ndat),shift(ndat)
@@ -6573,7 +6583,8 @@ c      parameter(ndat=40)
      >,ubtper(ndat),ufipa(ndat),ufipp(ndat),uphi(ndat)
      >,ufastpa(ndat),ufastpp(ndat),utot(ndat)
      >,ftotdt(ndat),ttntx(ndat)
-     >,betath(ndat),betaadat(ndat),pthdat(ndat)
+     >,betath(ndat),betaadat(ndat),pthdat(ndat),condic(ndat)
+     >,condec(ndat)
 c     >,ufastpa(ndat),ufastpp(ndat)
       dimension betaH(ndat),bdry(ndat),rmcp(ispc)
 c2d     >,dvol(ndat),darea(ndat),surfa(ndat)
@@ -6632,7 +6643,7 @@ c here we are having taefl file reading option
          read(io,*) (ptaefl(i,j),j=1,14)
 c         print *,(ptaefl(i,j),j=1,14)
       enddo
-      print *,'Read the Vanzee profiles and from NOVA_param',
+      print *,'Read the Vanzee profiles and from NOVAK_param',
      &     b0,rmaj,amin
  335  continue
       if(ftransp) then
@@ -6929,7 +6940,7 @@ c     Minority beta  (TOROIDAL)  BTMIN
             read(10,99) (betaH(k),k=1,ndat)
          enddo
 
-         if(int(szh).eq.1)then
+         if(int(szh).eq.1)then         ! making a choice between Alphas and nonAlphas
             read(10,8) sc
 c     dummy reading
             read(10,99) (betadat(k),k=1,ndat)
@@ -6950,14 +6961,12 @@ c Thermal Pressure 2(UI+UE)/3 (Pascals)   PPLAS
          read(10,8) sc
 c Total Pressure (thermal+3*UPHI/2+UFASTPA+UFASTPP/2) PTOWB
          read(10,99) (ptotdat(k),k=1,ndat)
-
 c
          read(10,8) sc
 c H minority temperature TMINI_H
          read(10,99) (thmindat(k),k=1,ndat)
-      
-         if(tip(1:1).eq.'i'.or.tip(1:1).eq.'h')then
-            read(10,8) sc
+         read(10,8) sc
+c         if(tip(1:1).eq.'i'.or.tip(1:1).eq.'h')then
 c H minority density  NMINI_H
             if(sc(7:13).eq.'NMINI_H')then
                read(10,99) (dhmindat(k),k=1,ndat)
@@ -6966,17 +6975,64 @@ c H minority density  NMINI_H
                write(*,*) 'i did not find H minority T prof.'
                write(*,*) 'switching to `h` distr.func.'
                tip='h'
+               stop 'reading of transp.dat file failed'
             endif
-         endif
-
+c         else
+c            read(10,99) (thdat(k),k=1,ndat) ! foo reading
+c         endif
+         do i=1,3
+            read(10,8) sc
+c CONDI      ION HEAT DIFFUSIVITY             CM**2/SEC       :XB
+            read(10,99) (condic(k),k=1,ndat)
+         enddo
+         read(10,8) sc
+c CONDE      ELECTRON HEAT DIFFUSIVITY        CM**2/SEC       :XB
+         read(10,99) (condec(k),k=1,ndat)
+         do i=1,2
+            read(10,8) sc
+cnng21 skip up to reading He3 minority density
+            read(10,99) (dhe3(k),k=1,ndat)
+         enddo
+         read(10,8) sc
+c     AIMPJ      Zonal avg A of impurity                          :X
+         read(10,99) (aimpj(k),k=1,ndat)
+c
+         read(10,8) sc
+c     XZIMPJ     Zonal avg A of impurity                          :X
+         read(10,99) (xzimpj(k),k=1,ndat)
+c      
+         read(10,8) sc
+c     eminper_h  
+         read(10,99) (eminper_h(k),k=1,ndat)
+c      
+         read(10,8) sc
+c     eminpar_h  
+         read(10,99) (eminpar_h(k),k=1,ndat)
+c      
+         read(10,8) sc
+c     eminper_3   HE3 ICRF MINORITY <E>PERP        EV              :X 
+         read(10,99) (eminper_3(k),k=1,ndat)
+c      
+         read(10,8) sc
+c     eminpar_3   HE3 ICRF MINORITY <E>PLL         EV              :X 
+         read(10,99) (eminpar_3(k),k=1,ndat)
+c      
+         read(10,8) sc
+c     tmini_3     HE3 ICRF MINORITY 2/3<E>         EV              :X 
+         read(io,99) (tmini_3(k),k=1,ndat)
+c      
+         read(io,8) sc
+c     nmini_3     HE3 ICRF MINORITY DENSITY        EV              :X 
+         read(io,99) (fnmini_3(k),k=1,ndat)
 c      read(10,8) sc
 c Z_eff profile
 c      read(10,99) (zeffdat(k),k=1,ndat)
-         rewind 10              ! finished reading transp.dat
+      rewind io                 ! finished reading transp.dat
       endif
 
       if(ftransp) then
          do 21 k=1,ndat
+c            tddat(k)=1.*tddat(k)
 cc  thermal Tritium and Hydrogen have same temperature as thermal Deuterium 
             ttdat(k)=tddat(k)
             thdat(k)=tddat(k)
@@ -6984,21 +7040,20 @@ cc  define beam-D and beam-T pressure
             pbddat(k)=(ubdpar(k)+ubdper(k)*0.5)*1.e6
             pbtdat(k)=(ubtpar(k)+ubtper(k)*0.5)*1.e6
 cc  H-min.press.=tot.f.ion - D and T beam energy - fusion ion density
-            if(int(szh).eq.1)then
-               padat(k)=((ufastpa(k)-ufipa(k)-ubdpar(k)-ubtpar(k))+(
-     &            ufastpp(k)-ufipp(k)-ubdper(k)-ubtper(k))*0.5)*1.e6
-            elseif(tip(1:1).eq.'i'.or.tip(1:1).eq.'h')then
+           if(tip(1:1).eq.'h'.and.int(szh).eq.2)then
+               padat(k)=fnmini_3(k)*tmini_3(k)*0.25e-12 ! doing similar to padat above
+           elseif(tip(1:1).eq.'i'.and.int(szh).eq.1)then
 cc  minority pressure used for benchmark with Irvine ?? gives the same equiv beta of minorities as the transp beta of beam ions
                padat(k)=dhmindat(k)*thmindat(k)*0.25e-12
+           elseif(int(szh).eq.1)then
+               padat(k)=((ufastpa(k)-ufipa(k)-ubdpar(k)-ubtpar(k))+(
+     &            ufastpp(k)-ufipp(k)-ubdper(k)-ubtper(k))*0.5)*1.e6
             else
 cc  alpha pressure
                padat(k)=(ufipa(k)+ufipp(k)*0.5)*1.e6
             endif
-ckg this part is to include cherez zhopu ICRF ions (don't need it)
-c      padat(k)=padat(1)*betaadat(k)/betaadat(1)
-c      print *,'----------====== padat is',padat(k)
-
    21    continue
+
       elseif(fastra19)then
          do k=1,ndat
 c            bdry(k)=ptaefl(k+1,1) ! sqrt(tor flux)
@@ -7067,7 +7122,7 @@ cc  alpha pressure
             endif
          enddo
       endif
- 336  continue
+
     8 format(a80)
     9 format(a59,f8.4)
    99 format(5(2x,1pe11.4))
@@ -7101,9 +7156,11 @@ c
       do 13 i=1,ndat
          rhodat(i)=2.*dddat(i)+3.*dtdat(i)
      &         +2.*dbddat(i)+3.*dbtdat(i)
-     &         +4.*dadat(i)+13.0*dzdat(i)
+     &         +4.*dadat(i)
      &         +1.*dhmindat(i)
-         if(tip(1:1).eq.'i')dadat(i)=dhmindat(i)
+     &         +3.0*dhe3(i)+aimpj(i)*dzdat(i)
+c     &         +13.0*dzdat(i) old, not correct in general impurity mass dens contribution
+         if(tip(1:1).eq.'i')dadat(i)=dhmindat(i)   ! dadat is the main fast ion specie for further NOVAK
    13 continue
 c
 c
@@ -7378,7 +7435,8 @@ ckg clindrial coordinate is needed; and itransp=1 is needed
      >,ubtper(ndat),ufipa(ndat),ufipp(ndat),uphi(ndat)
      >,ufastpa(ndat),ufastpp(ndat),utot(ndat)
      >,ftotdt(ndat),ttntx(ndat)
-     >,betath(ndat),betaadat(ndat),pthdat(ndat)
+     >,betath(ndat),betaadat(ndat),pthdat(ndat),condic(ndat)
+     >,condec(ndat)
 c      common/dat/fluxp(ndat),rdat(ndat),rhodat(ndat)
       write(*,*) "call RD_RSAE"
       dqdr=0.
@@ -7666,20 +7724,20 @@ c       print *,'jx,dq2dr; 2st',jx,dq2dr(jx),fluxp(ndat),fluxp(1),rb0
      & ,rad_damp
       write(1001,*)'gamma_con=',gamma_con
       close(1001)
-      open(unit=1002,file='eq_pro.dat')
-      write(1002,'(8a18)')"r","q","te","ti","th","ne","ni","nb"
-      do jx=1,nn
-        write(1002,'(8e18.9)')rgrid(jx),qprf(jx),tc(jx,1),tc(jx,2)
-     &    ,th(jx,3),denc(jx,1),denc(jx,2),denh(jx,1)      
-      enddo
-      close(1002)
-      open(unit=1003,file='eigfun.dat')
-      do jx=1,nn
-        do jy=1,mt
-          write(1003,*)eigfun(jx,jy,1)
-        enddo
-      enddo
-      close(1003)
+c      open(unit=1002,file='eq_pro.dat')
+c      write(1002,'(8a18)')"r","q","te","ti","th","ne","ni","nb"
+c      do jx=1,nn
+c        write(1002,'(8e18.9)')rgrid(jx),qprf(jx),tc(jx,1),tc(jx,2)
+c     &    ,th(jx,3),denc(jx,1),denc(jx,2),denh(jx,1)      
+c      enddo
+c      close(1002)
+c      open(unit=1003,file='eigfun.dat')
+c      do jx=1,nn
+c        do jy=1,mt
+c          write(1003,*)eigfun(jx,jy,1)
+c        enddo
+c      enddo
+c      close(1003)
       return
       end
 c**************************************************************************
