@@ -76,44 +76,48 @@ c---------
 ckg      sample='thermal plasma toroidal rotation'
 ckg      i1=2
 ckg      i2=18
+      ishft=0
+      if(ndat.gt.99) ishft=1
       sample='0 OMEGA'
-      i1=5
-      i2=11
+      i1=5+ishft
+      i2=11+ishft
       call read_vectr(i1,i2,ierr,io,sample,w_rot(1),ndat)
+      if(abs(w_rot(1)).gt.tol.and.abs(w_rot(ndat)).gt.tol) then
 c take not-exactly the first point in the rotation profile
-      w_rot0=(w_rot(1)+w_rot(2))*0.5
-      x(1)=w_rot0/w_rot(1)
+         w_rot0=(w_rot(1)+w_rot(2))*0.5
+         x(1)=w_rot0/w_rot(1)
 c take not-exactly the last point in the rotation profile
-      w_rot1=(w_rot(ndat)+w_rot(ndat-1))*0.5
-      x(2)=w_rot1/w_rot(ndat)
+         w_rot1=(w_rot(ndat)+w_rot(ndat-1))*0.5
+         x(2)=w_rot1/w_rot(ndat)
 c---------
 ckg      sample='Poloidal Flux'
 ckg      i1=2
 ckg      i2=13
-      sample='0 PLFLX'
-      i1=5
-      i2=11
-      call read_vectr(i1,i2,ierr,io,sample,psipol(1),ndat)
-      do i=1,ndat
-         psipol(i)=psipol(i)/psipol(ndat)
-         w_rot(i)=w_rot(i)/w_rot0
-      enddo
-      p_rot=alog((w_rot(ndat/2)-w_rot(1))/(w_rot(ndat)-w_rot(1)))
-     &     /alog(psipol(ndat/2))
-      p_rot0=p_rot
-      x(3)=0.
+         sample='0 PLFLX'
+         i1=5+ishft
+         i2=11+ishft
+         call read_vectr(i1,i2,ierr,io,sample,psipol(1),ndat)
+         do i=1,ndat
+            psipol(i)=psipol(i)/psipol(ndat)
+            w_rot(i)=w_rot(i)/w_rot0
+         enddo
+         p_rot=alog((w_rot(ndat/2)-w_rot(1))/(w_rot(ndat)-w_rot(1)))
+     &        /alog(psipol(ndat/2))
+         p_rot0=p_rot
+         x(3)=0.
 c---------
-      write(*,*) 'Rotn ',n,x,f,tol,iw,MAXCAL, IFAIL
-      call e04ccf(n, X, F, TOL, IW, W(1,1), W(1,2), W(1,3), W(1,4), W(1
-     &     ,5),W6(1,1), FUNCT1, MONIT, MAXCAL, IFAIL)
-      p_rot=x(3)+p_rot0
-      w_rot1=x(2)*w_rot(ndat)*w_rot0*1.e-6
-      w_rot0=x(1)*w_rot(1)*w_rot0*1.e-6
+         write(*,*) 'Rotn ',n,x,f,tol,iw,MAXCAL, IFAIL
+         call e04ccf(n, X, F, TOL, IW, W(1,1),W(1,2),W(1,3),W(1,4),W(1
+     &        ,5),W6(1,1), FUNCT1, MONIT, MAXCAL, IFAIL)
+         p_rot=x(3)+p_rot0
+         w_rot1=x(2)*w_rot(ndat)*w_rot0*1.e-6
+         w_rot0=x(1)*w_rot(1)*w_rot0*1.e-6
 cnng13
 c      write(*,'(3f13.5)') ((psipol(i),w_rot(i),w_rot0+psipol(i)**p_rot
 c     &     *(w_rot1-w_rot0)),i=1,ndat)
 cnng13
 c      write(*,*) x,f
+      endif
       close(io)
       return
  1    ierr=1
@@ -173,14 +177,14 @@ c      parameter (ndat=20,nxw=2,iw=nxw+1)
       common /lbqc/wresPfiVc(npf,nv),qpfc(npf),vc(nv),qpfresc,
      &     vresc,omstarc,wbc,imuc
 c      data tol/1.e-7/,maxcal/1000/
-      data tol/1.e-6/,maxcal/1000/
+      data tol/1.e-6/,maxcal/1000/,x/3*0./
 c---------
 c this "if" is to check the dimensions consistency and stop if they are not
 c  they should be OK always
       if(npfc.ne.npf.or.nvc.ne.nv.or.nmu.ne.nmuc) 
      &     stop 'stopping in wresminimize'
-      x(1)=dwp
-c      x(1)=0.
+      x(1)=-dwp*0.3
+      x(1)=0.
       x(2)=0.
 cnxw      x(3)=0.
       wresPfiVc=wresPfiV
@@ -192,7 +196,8 @@ cnxw      x(3)=0.
       imuc=imu
       omstarc=omstar
 c---------
-c      write(*,*) 'Wresminimise',nxw,x,vres,omstar
+cnng21 keep checking if a fitting of DF to 2nd order polyn works better than Taylor
+c      write(*,*) 'Wresminimize',nxw,x,vres,omstar,qpfres,dwpo
       call e04ccf(nxw, X, F, TOL, IW, W(1,1), W(1,2), W(1,3), W(1,4)
      &     , W(1,5),W6(1,1), fungw0, MONIT1, MAXCAL, IFAIL)
       dwpo=x(1)

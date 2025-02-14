@@ -1,19 +1,30 @@
 # you can put some extra flags with the variable in the gmake command line:
+# below -g flag activates debugging capabilities for totalview
 # gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-g" or DB="-D _test -g"
-# or use --chk for lfc compiler to check the boundaries of arrays
+#                                               or     -D _flatdf for modified DF with flat v behaviour
+#						or     -D _test -g to test for Land damp
+# or use/add -fbounds-check for gfortran compiler to check the boundaries of arrays
 #
 # Employ preprocessor command with the following flag 
 # gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D _dev" to activate extras, such as matrix tensor
 # 									or test key, itest
-# gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D dumpdf" to dump EP distribution function
+#					DB='-g -ffpe-trap=invalid,zero,overflow,underflow,inexact'
+# gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="{-g} -D dumpdf" to dump EP distribution function
 #    or 
 # rm tae.o orbit2d.o; gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D xTebf=0.51" to multpl Te by 0.51
-# the above flags could be combined such as DB="-D _dev -D xTebf=0.51" if needed
+# above flags could be combined such as DB="-D _dev -D xTebf=0.51" if needed to move the center of 
+# after the file dump, to look at the map do this: /u/ngorelen/work/exe/contmap4u.py Out/contmap.u4m
+#
 # for RBQ do this:
 #     	  rm growth_prpl.o
 #	  gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D _dev -D dumpdf" ! since gghN is recorded, be sure it is computed well
+#                                                                    -D _test1 is for true testing of resonance frequencies: itest=1 inside growth_prpl.f
 #	  and make sure for RBQ2D you have pk=0.5 in NOVA_param
+#         (not finished) for beam ions as a second compnt to alphas add -D nbiE0xtra=1000. - must be real not int
 #
+# to swap orbit2d.f with orbit2d${OSWF}.f define that variable, i.e. if it is not defined orbit2d.f will be used
+# then make the exe file with 
+# gmake -f /u/ngorelen/SRC/NOVAK3/mkorb +otherflagsneede+ OSWF="_TB"  for orbit2d_TB.f to be used
 os:= $(shell uname -s)
 arch:= $(shell uname -m)
 MACH    =$(os)$(arch)
@@ -23,21 +34,22 @@ GRAPH	=ncar2pgplot
 SRC_dep	=$(WRK)/
 ZIO	=/u/ngorelen/SRC/Equil/
 DB=
+OSWF=
 #
-# petrels AMD linux option
+# petrels AMD linux option # -fallow-invalid-boz 
 ifeq ($(FC),gfortran)
-  FFLAGS=-cpp -I$(WRK) -O2 -fno-backslash -I$(PWD) -fdefault-double-8 -fdefault-real-8 -fdefault-integer-8   # -O -I$(WRK) --dbl --long -c -o 
+  FFLAGS=-cpp -I$(WRK) -O2 -fno-backslash -I$(PWD) -fdefault-double-8 -fdefault-real-8 -fdefault-integer-8 -Wno-argument-mismatch -O2 -fPIC -mcmodel=large
   LINK.f =gfortran -w ${DB} $(FFLAGS) -L/usr/X11R6/lib/ 
-  FCG	:=$(FC) ${DB} -c -o
-  FC	:=gfortran -w ${DB} $(FFLAGS) -c -o
+  FCG	:=$(FC) -w ${DB} -c -o
+  FC	:=gfortran -w ${DB} $(FFLAGS) -c -o #-fallow-argument-mismatch
   OBJ   =wopen.o
-endif
-ifeq ($(FC),lfc)
-  FFLAGS=-Cpp -O -I$(WRK) --dbl --long -c -o 
-  FC	=lfc ${DB} $(FFLAGS)
-  FCG	=lfc ${DB}  -c -o 
-  LINK.f=lfc --model medium ${DB} -L/usr/X11R6/lib64/ 
+else
+  FFLAGS=-cpp -I$(WRK) -O2 -fno-backslash -I$(PWD) -r8 -i8
+  LINK.f =ifort -w ${DB} -L/usr/X11R6/lib/
+  FCG   :=$(FC) -w ${DB} -c -o
+  FC    :=${FC} -w ${DB} $(FFLAGS) -c -o
   OBJ   =wopen.o
+  PGPLOT_DIR :=/u/ngorelen/work/pgpintel/
 endif
 Cmod = clib.o
   OBJ     :=orbit2d.o orbitm2d.o orbit2dlib.o  $(OBJ) $(GRAPH).o \
@@ -66,24 +78,24 @@ orbit2dlib.o:	$(SRC)orbit2dlib.f $(SRC)clich2\
 $(GRAPH).o:	        $(SRC)$(GRAPH).f
 		        $(FCG) $(GRAPH).o $(SRC)$(GRAPH).f
 mpgplot.o:	/u/ngorelen/pgplot/mpgplot.f
-		$(FCG) mpgplot.o /u/ngorelen/pgplot/mpgplot.f
+		$(FCG) mpgplot.o -w -Wno-argument-mismatch -O2 -fPIC -mcmodel=large /u/ngorelen/pgplot/mpgplot.f
 
-orbit2d.o:	$(SRC)orbit2d.f $(SRC)clich1b $(SRC)clich2\
-	                $(SRC)orb2d.par $(SRC)clich1 $(SRC)orbit.grid\
+orbit2d.o:	$(SRC)orbit2d${OSWF}.f $(SRC)clich1b $(SRC)clich2\
+	                $(SRC)orb2d.par $(SRC)clich1 $(SRC_dep)orbit.grid\
 			$(SRC_dep)clichlmax $(SRC_dep)gridparam 
-			$(FC) orbit2d.o  $(SRC)orbit2d.f
+			$(FC) orbit2d.o  $(SRC)orbit2d${OSWF}.f
 orbitm2d.o:	$(SRC)orbitm2d.f $(SRC)clich1b $(SRC)clich2\
 	                $(SRC)orb2d.par $(SRC)clich1\
 			$(SRC_dep)clichlmax $(SRC_dep)gridparam
 			$(FC) orbitm2d.o $(SRC)orbitm2d.f
 orbit2d_prpl.o:	$(SRC)orbit2d_prpl.f $(SRC)clich1b $(SRC)clich2\
-	                $(SRC)orb2d.par $(SRC)clich1 $(SRC)orbit.grid\
+	                $(SRC)orb2d.par $(SRC)clich1 $(SRC_dep)orbit.grid\
 			$(SRC_dep)clichlmax $(SRC_dep)gridparam
 			$(FC) orbit2d_prpl.o  $(SRC)orbit2d_prpl.f
 tae.o:		$(SRC)tae.f $(SRC)clich1b $(SRC)clich2\
 	                $(SRC)clich1a $(SRC)clich1\
 			$(SRC_dep)clichlmax $(SRC_dep)gridparam
-			$(FC) tae.o $(SRC)tae.f
+			$(FC) tae.o $(SRC)tae.f -I/u/ngorelen/SRC/Equil/
 bzio_hydra.o:	        $(ZIO)/bzio_hydra.f
 			$(FC) bzio_hydra.o $<
 bzio_w2z.o:		$(ZIO)bzio_w2z.f $(ZIO)unitnumber
@@ -92,10 +104,10 @@ wopen.o:		$(ZIO)wopen.f
 			$(FC) $@ $<
 taem.o:		$(SRC)clich1b $(SRC)clich2 $(SRC)taem.f $(SRC)clich1\
 			$(SRC_dep)clichlmax $(SRC_dep)gridparam
-			$(FC) taem.o $(SRC)taem.f
+			$(FC) taem.o $(SRC)taem.f -I/u/ngorelen/SRC/Equil/
 frequency.o:		$(SRC)frequency.f
 			$(FC) $@ $<
-growth_prpl.o:		$(SRC)growth_prpl.f $(SRC)orbit.grid
+growth_prpl.o:		$(SRC)growth_prpl.f $(SRC_dep)orbit.grid
 			$(FC) $@ $<
 w_tw_s.o:		$(SRC)w_tw_s.f $(SRC)clich1\
 			$(SRC)clich2 $(SRC)clich1b $(SRC)orb2d.par
@@ -106,6 +118,8 @@ $(SRC_dep)gridparam:
 			cp $(SRC)gridparam.bak $(SRC_dep)gridparam
 $(SRC_dep)clichlmax:	
 			cp $(SRC)clichlmax.bak $(SRC_dep)clichlmax
+$(SRC_dep)orbit.grid:	
+			cp $(SRC)orbit.grid.bak $(SRC_dep)orbit.grid
 clib.o:			$(SRC)clib.c
 			gcc -pedantic -O -o $@ -c $^
 lorentzdf.o:		$(SRC)lorentzdf.c

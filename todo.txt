@@ -23,3 +23,8 @@
 
 -allow simultaneous runs: change equot to equot_n12w1234 and
  gam_n12w1234 ...
+
+- if eigenf is not well chosen, jumps can exist; => gg could be
+  strongly negative; to solve this one need to limit too large value
+  of dXi/dgy at line cnng24 (L971) in growth_prpl.f to ~10 at least;
+  normally this does not happen;

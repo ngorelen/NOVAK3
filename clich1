@@ -7,8 +7,8 @@ cc...                     nts=nths from dmap code
       parameter(nogrid=nmbrgrd,nts0=mnths0,nsf=nogrid,nts=nts0+5)
       parameter(minm=minm_1,maxm=maxm_1,mt=maxm-minm+1,mt2=mt*2)
       parameter(jmin=minm-2,jmax=maxm+2,jt=jmax-jmin+1,jt2=jt*2)
-      parameter(jcmin=minm,jcmax=maxm,jb=8,jc=jcmax-jcmin+mt)
-      parameter(jcc=jcmax-jcmin+1)
+      parameter(jcmin=minm,jcmax=maxm,jc=jcmax-jcmin+mt) ! jb was 8?? 101 is i set for ITER
+      parameter(jcc=jcmax-jcmin+1,jb=jcc)
 cccc   nn=nosurf
       parameter(nn=nogrid)
       parameter(lam=48,nthetaj=40)

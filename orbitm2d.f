@@ -19,7 +19,8 @@ c
      &     -mtl:mtl),q_res(nres,-mtl:mtl),nroot(-mtl:mtl),dfalp(nres,
      &     -mtl:mtl),dfalpdv(nres,-mtl:mtl),aeqv(nres,-mtl:mtl)
      &     ,psiavres(nres,-mtl:mtl),rfres(2,6,nres,-mtl:mtl),hwb1(nres,
-     &     -mtl:mtl),hnub(nres,-mtl:mtl),hnub_se(nres,-mtl:mtl)
+     &     -mtl:mtl),hnub(nres,-mtl:mtl),hnub_se(nres,-mtl:mtl),
+     &     hnb(nres,-mtl:mtl)
       tip=tip2
       if(im1.ne.1.and.im1.ne.0.and.im1.ne.10.and.im1.ne.2.
      &     and.im1.ne.3)then
@@ -104,17 +105,19 @@ c      write(*,*) ((eigfun(i,j,3),i=1,nosurf),j=1,6)
       moffset=-2
       call grafinit(1)
 ckg
-      call twodgraf(rgrid,eigfun(1,immax+moffset,1),nn,7,'white','solid'
-     &     ,'red',5,'rXi_vsr','\gq\d\gh\u\u1/2','r\gc\dn\u(a.u.)','ts',6
-     &     ,6,minm+immax-1+moffset,yyplot,0)
-      call twodgraf(rr(1,1),eigfun(1,immax+moffset,1),nn,7,'white'
+      npl=7
+      mini=minm+immax-1+moffset
+      call twodgraf(rgrid,eigfun(1,immax+moffset,1),nn,npl,'white',
+     &     'solid','red',5,'rXi_vsr','\gq\d\gh\u\u1/2','r\gc\dn\u(a.u.)'
+     &     ,'ts',6,6,mini,yyplot,0)
+      call twodgraf(rr(1,1),eigfun(1,immax+moffset,1),nn,npl,'white'
      &     ,'solid','red',5,'rXi_vsR','R(m)','r\gc\dn\u(a.u.)','ts',6,6
-     &     ,minm+immax-1+moffset,yyplot,0)
+     &     ,mini,yyplot,0)
 ckg      call frame(0)
 ckg
-      call twodgraf(rgrid,eigfun(1,immax+moffset,3),nn,7,'white','solid'
-     &     ,'red',5,'Xis_vsr','\gq\d\gh\u\u1/2','\gc\ds\u(a.u.)','ts',6
-     &     ,6,minm+immax-1+moffset,yyplot,0)
+      call twodgraf(rgrid,eigfun(1,immax+moffset,3),nn,npl,'white',
+     &     'solid','red',5,'Xis_vsr','\gq\d\gh\u\u1/2','\gc\ds\u(a.u.)'
+     &     ,'ts',6,6,minm+immax-1+moffset,yyplot,0)
 c fast ion beta, species 1-3
       call twodgraf(rr(1,1),ph(1,1),nn,3,'white','solid','red',5
      &     ,'gbfivsR','R(m)','p\dfi','ts',6,6,1,yyplot,0)
@@ -227,7 +230,7 @@ c       call testprof(b0oo1,ai,b0,ntor,tip,vi,zi)
 cc 6 The growth rate calculator thyself
       if(im1.eq.0.or.im1.eq.2.or.im1.eq.1.or.im1.eq.3)then
          call growth_prpl(ai,aeqv,b0oo1,deltk,dfalp,dfalpdv,
-     &        dpga,dintgr,fo,hnub,hnub_se,hwb1,mt,mtl,nres,eps
+     &        dpga,dintgr,fo,hnub,hnb,hnub_se,hwb1,mt,mtl,nres,eps
      &        ,epsp,gamkom,gamkomflr,iav,im1,iter,immax,isrfmax,ntgr,
      &        nosurf,nroot,omkom,omkomflr,p0ga,pk,psiavres,psitot,
      &        rfres,rma,rmi,symm,vi,vres,scalvavf,tip,xfow1,zi,istart)
@@ -319,7 +322,7 @@ c========== definitions for integrations
       call rescondif(ai,alpha,b0,b0oo,eps,epsp,im1,iter,ntgr
      &     ,psiav,psitot,psma,psmi,pmu,nmu,qpf,npf,r0,rf,rma
      &     ,rmi,symm,t0,tip,valfv,v,nv,vi,z0,zi,wvpr,wqvpr,wd,wb
-     &     ,xfow,xhp)
+     &     ,xfow,xhp,pk)
       call eigenmod(b0oo,b0,dbobmax,dbobmaxs,dnonmax,grps2(1),rgrid(1),
      &     min,min_f,max,max_f,ntae,scalvavf,valfv,wtae,deltk,ximax)
       do ipf=1,npf

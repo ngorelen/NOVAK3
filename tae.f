@@ -12,18 +12,18 @@ c......................................................................
 c
 c::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 c
-      subroutine defolt(im1,ihsps,xfow)
+      subroutine defolt(im1,ihsps,xfow,pk)
 c
       include 'clich1'
       include 'clich2'
 c      common/switch/iswitch,itransp
 c default parameters to be used in distribution function
       chidelt(1)=0.5
-      chidelt(2)=0.0
+      chidelt(2)=0.1  ! made nonzero to avoid division by zero for ICRH DF case, tip='h' or 'i'
       chidelt(3)=0.4
-      chidelt(4)=0.2
-      chidelt(5)=0.13
-      chidelt(6)=0.2
+      chidelt(4)=0.02  ! fraction, in pressure, BOT feature
+      chidelt(5)=0.13  ! width of BOT feature in norm. velocity
+      chidelt(6)=2.50  ! norm. centr. velocity of BOT feature
 c
       zero = 0.0
       one = 1.0
@@ -1728,7 +1728,7 @@ c
         do ijb=1,jb
         abpe(k,l,nsrf,ijb,1)=csss*rbce(k,l,ijb,1)*eigfun(nsrf,l,1)
         abpe(k,l,nsrf,ijb,4)=csss*rbcec(k,l,ijb,1)*eigfun(nsrf,l,1)
-ckg this is parallel electric field term, may give large contribution to
+ckg this is parallel electric field term, may give large contribution to 
 ckg the damping if there is singularity
 ckg tune     &       +rbcep(k,l,1)*dyn*sss
 c
@@ -1959,6 +1959,7 @@ c
       include 'clich1'
       include 'clich2'
       integer*8 ierr,length,nadres
+      include 'wopgc.inc'
 c
 ccc.. store matrices of mhd stability eqns.
       lgivup=1
@@ -1966,7 +1967,9 @@ ccc.. store matrices of mhd stability eqns.
       nadres=(nsrf-1)*length+10+1
 cben      call zwr(mp2,rbce,length,nadres+ishft,lgivup,ierr)
 c
-      call putwa('equou1',rbce,nadres,length,ierr)
+c      print *,trim(wfilen(3)),'t'
+c      call putwa('equou1',rbce,nadres,length,ierr)
+      call putwa(trim(wfilen(3)),rbce,nadres,length,ierr)
 ccc.....
 ccc  define pitch angle-flux surface variables for trapped and circulating particles
 c
@@ -2236,7 +2239,7 @@ ckg change 0.1128E+05
       rmcp(1)=1./1836.0
       rmcp(2)=2.
 cnng19 to work with Astra
-      rmcp(2)=4.
+c      rmcp(2)=4.
 cnng13      rmcp(2)=2.5
       rmcp(3)=3.
 c
@@ -2246,7 +2249,7 @@ c
       zc(1)=-1.0
       zc(2)=1.0
 cnng19 to work with Astra
-      zc(2)=2.0
+c      zc(2)=2.0
       zc(3)=1.0
       zc(4)=1.0
       zc(5)=6.0
@@ -3026,9 +3029,10 @@ c
       ph0(is)=ph(1,is)/ptot(1)*pprf(1)
       betah0(is)=ph0(is)/pprf(1)*beta0
       wch(is)=9.58e3*zh(is)*b0/rmhp(is)
-c      write(*,*) 'betas= ',is,betah0(is)
+c      write(*,*) 'betah0s= ',is,betah0(is)
       bet_trnsp=bet_trnsp+betah0(is)
    26 continue
+c      stop 'after inprofe'
 ckg Note that this factor is for scaling of the total plasma beta which
 c     can be different from TRANSP's
 c     Also we scale the temperature for the core ions and electrons
@@ -3414,9 +3418,10 @@ c printing a brute force approach coefficient _xTebf for scaling Te, read mkorb 
 #ifdef _xTebf
       print *,'used scaling factor for Te ',_xTebf
 #endif
-cnng13
+cnng13 extension for thermal ion Landau damping
       if(tip.eq.'x')then
-         th0(ihsps)=tc(1,2)
+cnng22         th0(ihsps)=tc(1,2)
+         th0(ihsps)=tc(1,ihsps+1)
       endif
 c      print *,'------------- tip=',tip,th0(ihsps),tc(1,2),ihsps
 cnng13
@@ -3770,7 +3775,7 @@ c
       sgnomr=om/abs(om)
       istart=4
       if(ishft.eq.0)istart=2
-      do 102 irf=istart,nosurf
+      do 102 irf=istart,nosurf 
       rg=rgrid(irf)
       q=qprf(irf)
 
@@ -4127,7 +4132,7 @@ c
 
       common/functn/omreal,eigfun(nn,mt,3),eigfun_s(nn,mt,3)
       common/coleig/xlam(ndet,nnsrf),cx(nnsrf,ndet,3)
-      dimension wabec(ndet),brg(100),ki(100)
+      dimension wabec(ndet),brg(200),ki(200)
 ckg
       common/abe/abpe(lam,mt,nn,jb,6)
 c
@@ -4842,13 +4847,15 @@ c
       common/parm1/np,npc,ipbmax,ipcmin,ipcmax,idet
      &,nnsurf,klamb,klamc,ishft,tip
       integer*8 nadres,ierr,length
+      include 'wopgc.inc'
 c
       lgivup=1
       length=(3*jb*mt+4)*lam+(3*jcc*mt+4)*lamc
       nadres=(nsrf-1)*length+10+1
 c
 c      call zrd(mp2,rbce,length,nadres+ishft,lgivup,ierr)
-      call getwa('equou1',rbce,nadres,length,ierr)
+c      call getwa('equou1',rbce,nadres,length,ierr)
+      call getwa(trim(wfilen(3)),rbce(1,1,1,1),nadres,length,ierr)
 ccc.....
 c     call zch(ioequ,iff,999)
   999 continue
@@ -5911,7 +5918,7 @@ c
 c
 c
       subroutine extrap1(y,x,n)
-      dimension y(n),x(n),z(100)
+      dimension y(n),x(n),z(200)
 ccc  extrapolate y values at x=0 and 1; x is the square 
 ccc root of the  normalized toroidal flux
       nm1=n-1
@@ -5958,8 +5965,8 @@ ckg      if(ishft.eq.-1)then
 ckg         call datin
 ckg      else
          call datin_pest(r,zh(ihsps),tip,rmcp,ispc)
-cng         print *,r,rmhp,tip
-cng         stop
+cng22         print *,'r,rmhp,tip',r,rmhp,tip,zh(ihsps),ihsps
+cng11         stop
 ckg      endif
 c
 ccc prepare cubic spline interpolation
@@ -6000,6 +6007,8 @@ c H minority temperature, valid only if tip='i' and set in inprofe
       call intspl(nosurf,ndat,ndat2,pbddat,ph(1,1),rgsq(1))
       call intspl(nosurf,ndat,ndat2,pbtdat,ph(1,2),rgsq(1))
       call intspl(nosurf,ndat,ndat2,padat,ph(1,3),rgsq(1))
+c      print *,'phs',ph(1,1),ph(1,2),ph(1,3)
+c      stop
 ckg this array is not actually used
       call intspl(nosurf,ndat,ndat2,betaadat,betaa(1),rgsq(1))
 cnng21 introducing thermal ion and electron conductivity
@@ -6013,8 +6022,8 @@ c
       end
 c
       subroutine smooth(y,n)
-      dimension y(n),z(400)
-      if(n.gt.400) stop 'Check n comp to its limit'
+      dimension y(n),z(410)
+      if(n.gt.410) stop 'Check n comp to its limit'
       nm1=n-1
       do 1 i=2,nm1
       z(i)=(y(i-1)+y(i)+y(i+1))/3.0
@@ -6039,7 +6048,7 @@ c
       dimension ff(n),xg(n)
       dimension f(nsp),cf(nsp2)
 c
-      call depose(f,cf)
+      call depose(f,cf,nsp,nsp2)
 c
       do 1 i=1,n
       ff(i)=0.0
@@ -6057,7 +6066,7 @@ c
       dimension ff(n),xg(n)
       dimension f(nsp),cf(nsp2)
 c
-      call depose(f,cf)
+      call depose(f,cf,nsp,nsp2)
 c
       do 1 i=1,n
       ff(i)=0.0
@@ -6103,14 +6112,14 @@ c
       include 'clich1a'
       parameter(nn=nogrid,nnp2=nn+2)
       common/splinc/gspl(nnp2,nn),gsplp(nnp2,nn)
-      dimension xg(n)
+      dimension xg(n),spl(nn),splp(nn)
 c
       do 1 i=1,n
       do 2 isp=1,nsp2
-      call spval(isp,xg(i),spl,1)
-      call spvalp(isp,xg(i),splp,1)
-      gspl(isp,i)=spl
-      gsplp(isp,i)=splp
+      call spval(isp,xg(i),spl(i),1)
+      call spvalp(isp,xg(i),splp(i),1)
+      gspl(isp,i)=spl(i)
+      gsplp(isp,i)=splp(i)
     2 continue
     1 continue
       return
@@ -6165,10 +6174,10 @@ c---
    30 continue
       return
       end
-      subroutine depose(fn,c)
+      subroutine depose(fn,c,nsp,nsp2)
       include 'clich1a'
       parameter(nn=nogrid,nnp2=nn+2)
-      dimension fn(1000),c(1)
+      dimension fn(nsp),c(nsp2)
       common/rcl/r(nn)
       common/ncl/nm2,nm1,n,np1,np2
       common/phi01cl/p01(nn)/phi02cl/p02(nn)/phi03cl/p03(nn)
@@ -6230,7 +6239,7 @@ c---compute c.
       subroutine repose(c,v)
       include 'clich1a'
       parameter(nn=nogrid,nnp2=nn+2)
-      dimension c(1),v(1)
+      dimension c(1000),v(1000)
       common/rcl/r(nn)
       common/ncl/nm2,nm1,n,np1,np2
       common/phi01cl/p01(nn)/phi02cl/p02(nn)/phi03cl/p03(nn)
@@ -6646,6 +6655,8 @@ c         print *,(ptaefl(i,j),j=1,14)
       print *,'Read the Vanzee profiles and from NOVAK_param',
      &     b0,rmaj,amin
  335  continue
+      ishft=0
+      if(ndat.ge.100)ishft=1
       if(ftransp) then
          read(10,8) sc
 c      read(10,'(a26,f11.4)') sc(1:26),b0
@@ -6780,7 +6791,7 @@ c Total ion density (NH+ND+NT+NIMP) at x (/cm3)
          read(10,8) sc
 c Fast alpha density NFI at x (/cm3)
          read(10,99) (dadat(k),k=1,ndat)
-
+c skipping NHE4 and reading BDENS
          do iread=1,2
             read(10,8) sc
 c     Total beam ion density BDENS at x (/cm3) - not used
@@ -6866,11 +6877,11 @@ c            bdry(i)=ptaefl(i+1,1) ! sqrt(tor flux)
 
       if(ftransp) then
          read(10,8) sc
-c Electron energy density 3*NE*TE/2 (Joules/cm3)
+c Electron energy density 3*NE*TE/2 (Joules/cm3) UE
          read(10,99) (ue(k),k=1,ndat)
 
          read(10,8) sc
-c Ion energy density 3*NI*TI/2 (Joules/cm3)
+c Ion energy density 3*NI*TI/2 (Joules/cm3) UI
          read(10,99) (ui(k),k=1,ndat)
 
          read(10,8) sc
@@ -6968,13 +6979,13 @@ c H minority temperature TMINI_H
          read(10,8) sc
 c         if(tip(1:1).eq.'i'.or.tip(1:1).eq.'h')then
 c H minority density  NMINI_H
-            if(sc(7:13).eq.'NMINI_H')then
+            if(sc(7+ishft:13+ishft).eq.'NMINI_H')then
                read(10,99) (dhmindat(k),k=1,ndat)
             else
                write(*,*) 'WARNING'
                write(*,*) 'i did not find H minority T prof.'
-               write(*,*) 'switching to `h` distr.func.'
-               tip='h'
+cnng22 since stopping later, no need to switch the tip        write(*,*) 'switching to `h` distr.func.'
+c               tip='h'
                stop 'reading of transp.dat file failed'
             endif
 c         else
@@ -7029,8 +7040,11 @@ c Z_eff profile
 c      read(10,99) (zeffdat(k),k=1,ndat)
       rewind io                 ! finished reading transp.dat
       endif
+c
 
       if(ftransp) then
+c         print *,'padat0,pbddat0,pbtdat0', 
+c     &        padat(1),pbddat(1),pbtdat(1),szh,tip
          do 21 k=1,ndat
 c            tddat(k)=1.*tddat(k)
 cc  thermal Tritium and Hydrogen have same temperature as thermal Deuterium 
@@ -7053,6 +7067,9 @@ cc  alpha pressure
                padat(k)=(ufipa(k)+ufipp(k)*0.5)*1.e6
             endif
    21    continue
+c         print *,'padat0,pbddat0,pbtdat0', 
+c     &        padat(1),pbddat(1),pbtdat(1),szh,tip
+c         stop
 
       elseif(fastra19)then
          do k=1,ndat
@@ -7215,7 +7232,7 @@ c2d      rhodat(i)=rhodat(i)/rhodat0
 c2d  977 continue
 c   prepare for spline fitting
       call splprp(rsdat,ndat)
-c2d      call depose(rhodat,spcd)
+c2d      call depose(rhodat,spcd,?,?)
       close(io)
       return
  33   write(*,*) sc
@@ -7225,7 +7242,7 @@ c2d      call depose(rhodat,spcd)
       write(*,*)'--> modify ndat in gridparam and recompile gotae'
       stop ' --> Stopping for now.'
  333  stop 'no transp.dat or taefl.txt or astra.dat present, stopping'
-      end
+      end          ! end of taebeta
 c
 c**************************************************************************
 c     Here we calculate TAE growth rate using analytical formula for
@@ -7247,7 +7264,7 @@ ckg limit how close you can get to the boundaries
       p2gc=max(chidelt(1)**2,0.1)
       print *, '--------------------------------------'
       print *, 'Analytical estimate of TAE growth rate'
-      write(*,*)'At peak Xir surface index =',isrfmaxin
+      write(*,*)'At peak Xir surface index =',isrfmax
       print *, 'For beams use Chi0 = ',sqrt(p2gc)
 ckg evaluate derivative in the vicinity using ten points
       sum1=0
@@ -7278,7 +7295,12 @@ c
       ggthkgw_m=0.
       ggthkgw_sezow=0.
       ggthkgw_sezowd=0.
+c 
       v_crit=0.58
+      dne_vd=denc(isrfmax,1)
+      z1_vd=0.5 - denc(isrfmax,3)/(6.*dne_vd)
+      v_crit=0.16784*z1_vd**0.33333/vi_vd*sqrt(tc(isrfmax,1)*0.001)
+      print *,'v_crit,ir,te,z1',v_crit,isrfmax,tc(isrfmax,1),z1_vd,vi_vd
 c sum over fundamental resonances
       do i=1,2
          gcr=1.-(i*2-3)*qprf(nosurf)/abs(qprf(isrfmax)*omreal1)
@@ -7457,9 +7479,9 @@ c
       close(137)
       coeff_rad(1)=0.1125
       coeff_rad(2)=1.2206
-      write(*,*) 'ntor=', ntor
+      write(*,*) 'ntor=', ntor,' nn=',nn,' coeff_rad',coeff_rad
       write(*,*) 'the polodial mode number is', minm+immax-1
-!      write(*,*) "nn in radiative_damping_w is", nn
+!      write(*,*) "nn in radiative_damping_w is", nn 
 !      write(*,*)  'major radius is', rmaj	! in unit of (cm)
       va=2.18e11*b0/sqrt(rho0)			! in unit of (cm/s)
       do jx=1,nn,1
@@ -7623,18 +7645,18 @@ c       print *,'jx,dq2dr; 2st',jx,dq2dr(jx),fluxp(ndat),fluxp(1),rb0
        dq2dr(jx)=dq2dr(jx)/10000.0		! in unit of (1/cm^2)    
       enddo
 
-!      do jx=2,nn-1,1
-!        dq2dr(jx)=(qprf(jx+1)-2.0*qprf(jx)+qprf
-!     &  (jx-1))*4.0/(rmin(jx+1,mth/2+1)-rmin(jx-1,mth/2+1))**2.0
-!       temp1=dq2dr(jx)
-!        dq2dr(jx)=(qprf(jx+1)-2.0*qprf(jx)+qprf
-!     &  (jx-1))*4.0/(rmin(jx+1,1)-rmin(jx-1,1))**2.0
-!       temp2=dq2dr(jx)
-!       dq2dr(jx)=(temp1+temp2)/2.0 
+      do jx=2,nn-1,1
+        dq2dr(jx)=(qprf(jx+1)-2.0*qprf(jx)+qprf
+     &  (jx-1))*4.0/(rmin(jx+1,mth/2+1)-rmin(jx-1,mth/2+1))**2.0
+       temp1=dq2dr(jx)
+        dq2dr(jx)=(qprf(jx+1)-2.0*qprf(jx)+qprf
+     &  (jx-1))*4.0/(rmin(jx+1,1)-rmin(jx-1,1))**2.0
+       temp2=dq2dr(jx)
+       dq2dr(jx)=(temp1+temp2)/2.0 
 !! dq2dr in unit of (1/m^2)
 !! rr in unit of (m)
-!        dq2dr(jx)=dq2dr(jx)/10000.0		! in unit of (1/cm^2)
-!      enddo
+        dq2dr(jx)=dq2dr(jx)/10000.0		! in unit of (1/cm^2)
+      enddo
 
       dq2dr(1)=dq2dr(2)
       dq2dr(nn)=dq2dr(nn-1)
@@ -7672,6 +7694,8 @@ c       print *,'jx,dq2dr; 2st',jx,dq2dr(jx),fluxp(ndat),fluxp(1),rb0
      &  /qprf(gqmin))/rmaj *((omreal)**2.0
      &  -w1(gqmin))/(w1(gqmin)*(r_min)**2.0
      &  *dq2dr(gqmin))
+      print *,'print rada',coeff_rad(1),s_eign,-coeff_rad(2),
+     &        sqrt(abs(lambda_eign)),dq2dr(gqmin)
       if(abs(lambda_eign).lt.1.e-6)then
          rad_damp=0.
       else

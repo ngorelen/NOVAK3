@@ -5,9 +5,11 @@
       common/plasmap/rmaj,amin,b0
 ckg_rad
       dimension anq(nn),alamx(nn),w(nn),tfx(nn)
+     & ,gamcont(1)
 ckg_rad
-      character pest,legname*6
+      character pest,legname*6,equou*22,bufeq*50,ceigenf*6
       integer*8 nmap1,lhhh,igivup,ierr,nadres,len
+      include 'wopgc.inc'
 c
 ckg      istat=ishell('rm -f otae')
       open(16,file='otae',status='unknown')
@@ -145,7 +147,11 @@ c
 ckg      nmap1 = 500
       nmap1 = 300000
       nmap1 = length
-      call wopen('equou1',nmap1,lhhh,ierr)
+      equou(1:11)='/local/equo'
+      write(equou(12:22),'(i10)')time()
+      print *,'making a local file ',equou
+c      call wopen('equou1',nmap1,lhhh,ierr)
+      call wopen(trim(equou),nmap1,lhhh,ierr)
 c replacing      call zwr(outequ1,ntor,10,1,1,100)
 cdeb        call zwr(mp2,ntor,10,1+ishft,1,100)
       lhhh = 1
@@ -154,7 +160,8 @@ c+ishft
       lhhh=10
 c      print *, ntor,lmin,lmax,kmin,ktot,njg,mjx,nnx,igrid,xr
 c     &,ltot,ltotsq,ltots2,ltots8
-      call putwa('equou1',ntor,nadres,lhhh,ierr)
+c      call putwa('equou1',ntor,nadres,lhhh,ierr)
+      call putwa(trim(wfilen(3)),ntor,nadres,lhhh,ierr)
 c
 ccc
 ccc...  read TAE mode eigenfunctions and eigenfrequency ( zeroth order)
@@ -187,10 +194,11 @@ c         call wopen('eigenf',length,0,ierr)
          call getwa ( 'eigenf', eigfun, lhhh, len, ierr )
          lhhh=lhhh+len+1
          len=1
-         call getwa ( 'eigenf', gamcont, lhhh, len, ierr )
-         write(*,*) 'Continuum gamma/omega=',gamcont
+         ceigenf='eigenf'
+         call getwa ( ceigenf, gamcont, lhhh, len, ierr ) ! 'eigenf'
+         write(*,*) 'Continuum gamma/omega=',gamcont(1)
          write(57,*) 'Continuum damping'
-         write(57,*) gamcont
+         write(57,*) gamcont(1)
 c         call zcl(ioc,ierr)
 
          call zeroo(eigfun_s(1,1,1),nn*mt*3)
@@ -240,12 +248,12 @@ ckg to compute the omega_star
       isrfmax=0
       immax=0
       hhh=0.
-      do i=1,nn
+      do i=11,nn ! start from 11th surface to avoid problems near origin
          do im=1,mt
             if(hhh.lt.abs(eigfun(i,im,1)))then
                hhh=abs(eigfun(i,im,1))
                isrfmax=i
-               immax=im
+               immax=im ! use it like this: immax-1+minm_1 to get true m
             endif
          enddo
       enddo
@@ -443,6 +451,10 @@ c      symm=0.
       vi=1.298
       vi=sqrt(th0(ihsps)/(1.e+6)*4./3.52/rmhp(ihsps))*vi
       zi=zh(ihsps)
+c closing temp file and removing it
+      call wclose(trim(wfilen(3)),ierr)
+      write(bufeq,'(a3,a21)') "rm ",equou   !trim(wfilen(3))
+      call system(trim(bufeq))
 c The variable tip is related to the distribution function type.
 c It is used in the subroutine distrifun (file orbit2d.f)
 c!!!!!!!it is read two times from NOVAK_param file since some variables 
@@ -455,7 +467,8 @@ c         (It'll switch to im1= 0, e.g.TAE's automatically)
 c     't' slowing down for test with tftr equilibrium
 c     'j' slowing down for test with jet equilibrium
 c     'm' Maxwellian with standard input
-c     'x' Maxwellian with thermal ions for proper Landau damping calculations
+c     'x' Maxwellian with thermal ions for proper D/T Landau damping calculations (add im1=3 for rot)
+c         if ihsps=1, i.e. deuterium is prescribed.
 c   Below is for Gaussian pitch distribution centered at p=P0GA
 c   and having width delta_p = DPGA, p=mu*Baxis/E (sometimes in the
 c   literature refered as =lambda). Add im1=3 for better treatment 
@@ -478,7 +491,7 @@ c     'i' is similar to 'h' option for ICRF but with H temperature read
 c         from transp.dat file: if tip(1:1).eq.'i'.and.int(szh).eq.1
 c           tmini_h     H ICRF MINORITY 2/3<E>  
 c           nmini_h     H ICRF MINORITY DENSITY 
-c         Those two option 'h','i' work so far with transp input, i.e. itransp=1 in NOVA_param.
+c         Those two option 'h','i' work so far with transp input when itransp=1 in NOVA_param.
 c     'r' this symbol is for special distribution function for START shot
 c         #35305 at 26.3 ms for the form see subroutine DISTRFUN
 c     'g' (i recommend to use 'l' option, which is better. Lorentz model
@@ -572,7 +585,7 @@ c
          write(*,*) '------------------------'
       endif
 close(57)
-      stop
+      stop 'stopping after analtc estimates'
   100 call errmes ( iodat, 4hmain )
   300 format ( i1 )
 c
@@ -988,7 +1001,7 @@ c
       common/plasmap/rmaj,amin,b0
       character defin*72,sample*40
       logical klyu(2)
-      dimension wrk(3)
+      dimension wrk(3),hhh(1)
       data io/23/,defin/' '/,sample/' '/,klyu/2*.true./
       open(io,file='NOVAK_param',status='unknown')
  1    i1=2
@@ -996,32 +1009,38 @@ c-----------------------------
       defin='Toroidal mode number'
       sample='ntor'
       i2=i1+3
-      hhh=real(ntor)
+      hhh(1)=real(ntor)
       nwrk=1
-      call read_vec(defin,i1,i2,io,klyu,sample,hhh,nwrk)
-      ntor=int(hhh)
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh(1),nwrk)
+      ntor=int(hhh(1))
 c-----------------------------
       defin='Key=1=>TRANSP.dat,=0 =>anal.prfs,=2=>anal+ T(r)<=p(r)/n(r)'
       sample='itransp'
       i2=i1+6
-      hhh=real(itransp)
-      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
-      itransp=int(hhh)
+      hhh(1)=real(itransp)
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh(1),nwrk)
+      itransp=int(hhh(1))
 c-----------------------------
       defin='Major rad. of geom. center [cm] if(itransp|=1)'
       sample='rmaj'
       i2=i1+3
-      call read_vec(defin,i1,i2,io,klyu,sample,rmaj,1)
+      hhh(1)=rmaj
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
+      rmaj=hhh(1)
 c-----------------------------
       defin='Minor rad. of last surface [cm]'
       sample='amin'
       i2=i1+3
-      call read_vec(defin,i1,i2,io,klyu,sample,amin,1)
+      hhh(1)=amin
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
+      amin=hhh(1)
 c-----------------------------
       defin='Vacuum mag. field at geom. center [Gauss]'
       sample='B0'
       i2=i1+1
-      call read_vec(defin,i1,i2,io,klyu,sample,b0,1)
+      hhh(1)=b0
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
+      b0=hhh(1)
 c-----------------------------
       defin='Electron density [cm^-3] at magnetic axis'
       sample='dn_e'
@@ -1059,17 +1078,23 @@ c-----------------------------
       defin='1st parameter for plasma density'
       sample='alphar'
       i2=i1+5
-      call read_vec(defin,i1,i2,io,klyu,sample,alphar,1)
+      hhh(1)=alphar
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
+      alphar=hhh(1)
 c-----------------------------
       defin='2nd parameter for plasma density'
       sample='prho'
       i2=i1+3
-      call read_vec(defin,i1,i2,io,klyu,sample,prho,1)
+      hhh(1)=prho
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
+      prho=hhh(1)
 c-----------------------------
       defin='3rd parameter for plasma density'
       sample='arho'
       i2=i1+3
-      call read_vec(defin,i1,i2,io,klyu,sample,arho,1)
+      hhh(1)=arho
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
+      arho=hhh(1)
 c-----------------------------
       defin='Fast particle mass'
       sample='rmhp'
@@ -1084,9 +1109,9 @@ c-----------------------------
       defin='Fast particle index 1 to 3'
       sample='ihsps'
       i2=i1+4
-      hhh=real(ihsps)
-      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
-      ihsps=int(hhh)
+      hhh(1)=real(ihsps)
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh(1),nwrk)
+      ihsps=int(hhh(1))
 c-----------------------------
       defin=
      &'alphart,prhot,arhot:Tthermal~(1-alphart*rsq**prhot)**arhot'
@@ -1121,21 +1146,23 @@ c-----------------------------
       defin='Finite Orbit Width: 0< xfow <1'
       sample='xfow'
       i2=i1+3
-      call read_vec(defin,i1,i2,io,klyu,sample,xfow,1)
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh(1),1)
+      xfow=hhh(1)
 c-----------------------------
       defin='Key to m1 stability calculations Im1'
       sample='im1'
       i2=i1+2
-      hhh=real(im1)
-      call read_vec(defin,i1,i2,io,klyu,sample,hhh,1)
-      im1=int(hhh)
+      hhh(1)=real(im1)
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh(1),nwrk)
+      im1=int(hhh(1))
 c-----------------------------
       defin=
      & 'Velocity grid exponent: pk=1 equidistant in v or 0.5 in energy'
       sample='pk'
-      pk=1.
+      hhh(1)=1.
       i2=i1+1
-      call read_vec(defin,i1,i2,io,klyu,sample,pk,1)
+      call read_vec(defin,i1,i2,io,klyu,sample,hhh(1),nwrk)
+      pk=hhh(1)
 c-----------------------------
       defin='Distr.function type s-slow.down,m -mxwll.(see taem.f)'
       sample='_dtype'
@@ -1213,7 +1240,7 @@ c************************************************************************
 ckg_rad this is subroutine written by G. Fu.
       subroutine radiative_damping(al,elong,gam_rad,anq,nn,n1a,n2a,om,w
      &     )
-      parameter(nrad=400)
+      parameter(nrad=410)
       dimension eps(100),g(100),wint(100),alam(100),eps1(100)
       dimension anq(nn),al(nn),px(nrad),w(nn),psi(100),qx(nrad)
       dimension w1(nrad),w2(nrad),imax(100),igap(100)

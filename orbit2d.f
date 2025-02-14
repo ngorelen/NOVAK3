@@ -47,7 +47,7 @@ c      rma=rma
 c
       call rescondif(ai,alpha,b0,b0oo,eps,epsp,0,iter,ntgr,psiav,psitot
      $     ,psma,psmi,pmu,nmu,qpf,npf,r0,rf,rma,rmi,symm,t0,tip,valfv
-     &     ,v0,nv,vi,z0,zi,wvpr,wqvpr,wd,wb,xfow,xhp)
+     &     ,v0,nv,vi,z0,zi,wvpr,wqvpr,wd,wb,xfow,xhp,pk)
       write(*,*) ' Psmi,ma=',psmi,psma,xfow
       write(*,*) ' Type ntgr,sigm,symm',ntgr,sigm,symm
       read(*,*) ntgr,sigm,symm
@@ -76,13 +76,13 @@ c         xv0=xv0*1.298/vi
             rr(i)=z1+(i-1)*hz
             vb(i,3)=0.
             vd(i,3)=0.
-            call critpnts(eps,iter,1,1,qpf(1),pmu(j1),psmi,psma,r0,rf(1
-     &           ,1,j1,nv1),rmi,rma,xv0,xhp,z0)
+!            call critpnts(eps,iter,1,1,qpf(1),pmu(j1),psmi,psma,r0,rf(1
+!     &           ,1,j1,nv1),rmi,rma,xv0,xhp,z0)
             do ivv=1,1
-               call wdif(alpha,b0,eps,epsp,iter,ntgr,r0,rmi,rma,pmu(j1)
-     &              ,nr1,vd(i,3),psmi,psma,rr(i),1,rf(1,1,j1,nv1)
-     &              ,rvpar0(1),symm,sigm,t0,vi,xv0,1,vd(i,1),vb(i,1)
-     &              ,vb(i,2),vd(i,2),xhp,z0)
+!               call wdif(alpha,b0,eps,epsp,iter,ntgr,r0,rmi,rma,pmu(j1)
+!     &              ,nr1,vd(i,3),psmi,psma,rr(i),1,rf(1,1,j1,nv1)
+!     &              ,rvpar0(1),symm,sigm,t0,vi,xv0,1,vd(i,1),vb(i,1)
+!     &              ,vb(i,2),vd(i,2),xhp,z0)
 c                      wvpr____wqvpr___wd_____wb
 c               vd(i,1)=4.*abs(vb(i,1)+vb(i,2))
             enddo
@@ -154,7 +154,7 @@ c      rma=rma
 c
       call rescondif(ai,alpha,b0,b0oo,eps,epsp,0,iter,ntgr,psiav,psitot
      $     ,psma,psmi,pmu,nmu,qpf,npf,r0,rf,rma,rmi,symm1,t0,tip,valfv
-     &     ,v0,nv,vi,z0,zi,wvpr,wqvpr,wd,wb,xfow,xhp)
+     &     ,v0,nv,vi,z0,zi,wvpr,wqvpr,wd,wb,xfow,xhp,pk)
 call t0xhp(alpha,t0,xhp,ai,b0,b0oo,vi,zi,psitot)
 c
       nv1=nv
@@ -422,7 +422,7 @@ c*********************************************************
 c define arrays for NOVA-K code, qpf, pmu, and v
       subroutine rescondif(ai,alpha,b0,b0oo,eps,epsp,im1,iter,ntgr,psiav
      &     ,psitot,psma,psmi,pmu,nmu,qpf,npf,r0,rf,rma,rmi,symm,t0,tip1
-     &     ,valfv,v,nv,vi,z0,zi,wvpr,wqvpr,wd,wb,xfow,xhp)
+     &     ,valfv,v,nv,vi,z0,zi,wvpr,wqvpr,wd,wb,xfow,xhp,pk)
       dimension qpf(npf),pmu(nmu),v(nv),wvpr(nv,nmu,npf,2),
      $     wqvpr(nv,nmu,npf,2),wd(nv,nmu,npf,2),wb(nv,nmu,npf,2)
      $     ,rf(2,6,nmu,nv),rvpar0(150),psiav(nv,nmu,npf,2)
@@ -530,10 +530,17 @@ c velocity grid definition
      ^     'c'.or.tip.eq.'g'.or.tip.eq.'l'.or.tip.eq.'b'.or.tip.eq.'.'
      ^     )then
          vmax=1.07
+c don't need this piece as we need to keep the original - alpha's grid in COM, i.e. energy
+!#ifdef nbiE0xtra
+c         vmax=vmax*sqrt(nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))
+c         print *,'vmax=',vmax,'nbiE0xtra',nbiE0xtra,'ai=',ai,'vi=',vi
+c hchirp(2)=hchirp(2)/(_xTebf)**1.5 ! plus plus
+!#endif
       else
-         vmax=max(valfv/vi,1.)*4.
+c         vmax=max(valfv/vi,1.)*4.
+         vmax=min(valfv/vi,4.)
+         vmax=max(vmax,4.)
       endif
-      pk=0.5
       if(im1.eq.0.or.im1.eq.2.or.im1.eq.3)then
          call inistr(v,nv,.1,vmax,pk)
       else if(im1.eq.1)then
@@ -1318,11 +1325,17 @@ c      write(*,*) 'wb= ',2.*pi/tb,fo,wtae
       return
       end
 c**********************************************************************
-c On output it produces the distribution function in cm^-3,
+c On output it produces the distribution function in cm^-3 and its derivatives: dfalp,dfalpdv,dfalpdpsi,
 c  i.e. it is the same spatial function but multiplied by v_0^3.
 c Also here gam is the parameter so that the df is
 c  f~/(v^3 + v*^3)^(2-gam) and gam=1 corresponds to the slowing down df.(BepHo)
 c tb,wb_res,dwbdpphi are used only if tip='r'
+c on input m.b. present is psior!!!i.e. corresponding to qpf,pmu,vinstant1
+cnng22
+c For ITER, because of engineering requirements to avoid T beams we use D beams
+c and'd like to have the same COM (energy) grid as for alphas, compress in E for D beams
+c this case m.b. compiled with DB="-D nbiE0xtra=???" to be the energy of the beam, <1760keV
+c           and run with ihsps=1, ai=2, zi=1, E0 likely nbiE0xtra=1000keV
       subroutine distrfun(ai,b0oo,dfalp,dfalpdv,dfalpdpsi,dpga,eps,psior
      &     ,gam,hnub,hchirp,ihsps,iter,qpf,p0ga,pmu,rvpar,sigm,tb,tip2
      &     ,vinstant1,vi,vmax,vstortkeal,z0,xhp,zi,dwbdpphi,wb_res,
@@ -1344,6 +1357,7 @@ c values for NSTX-U devices are left according to M. Gorelenkova: xfull/0.461/, 
       data xfull/0.461/, xhalf/0.386/
       save tip1,vstar3,vstar3s,cvsld,denshh,cv,dnpsi0,betalpha0,cnorm,
      &     sa,sa2,sa3
+      if(vinstant1.gt.vmax) goto 101       !goto exit if v > vmax
       Tip=tip2
 c Calculate the normalization every time since the normalization depends on the velocity, which changes
 c every call.
@@ -1365,12 +1379,12 @@ c every call.
       if(tip.ne.tip1.or.tip.eq.'g')then
          if(tip.ne.tip1) then
             if(tip.eq.'x') then
-               print *,'Compute ion Landau damping accurately, using -K'
-               print *,'use D ions with central beta',betac0(2),
-     &              'type of DF is',tip
+               print *,'Compute ion Landau damping, using -C(former -K)'
+               print *,'use D/T ions with central beta',betac0(2)
+     &              ,betac0(3),' type of DF is',tip
             else
-               write(*,*)' Ihsps=',ihsps,' betah0=',betah0(ihsps),tip
-     &              ,tip1
+               write(*,*)' Ihsps=',ihsps,' betah0=',betah0(ihsps),
+     &              ' tip=',tip,' saved tip1=',tip1
                write(57,*) 'Fast ion beta, beta_h'
                write(57,*) betah0(ihsps)
             endif
@@ -1443,7 +1457,7 @@ ckg            dnpsi0=0.5
                z1=.5*(1.+denc(i,4)/denc(i,1))-denc(i,3)/denc(i,1)/6.
                vstar3s(i)=vstar3(i)*zeff(i)/z1
             else
-c a place to call the Coulomb log subroutine
+c a place to call the Coulomb log subroutine; good for tip='s','l'
 cold expr if log_e=log_i
                z1a=.5*(1.+denc(i,4)/denc(i,1))-denc(i,3)/denc(i,1)/6.
                do il=1,ispc               !loop for e,d,t,h,c
@@ -1486,7 +1500,7 @@ c     exp(-ppsi(i)/dnpsi0)
      &                 ,ihsps))
                else if(tip.eq.'x')then
 c /2 m vozniknut iz-za sravneniya s transpom
-                  denshh(i)=denc(i,2)
+                  denshh(i)=denc(i,ihsps+1)
 c13 
                else
                   denshh(i)=betah0(ihsps)*ph(i,ihsps)*4.755e12*b0oo**2
@@ -1497,13 +1511,14 @@ c13
 ckg b0oo*3. byl vveden (ran'she ne bylo)
             cv=0.3195*zi*psitot*b0oo*3.
             cnorm=vi**3*zi*ai**2*0.0882*3.
-         else
+         else  ! part for 'l','s'
 c               write(*,*)  'sqrt(\Psi),     rhoprf'
+cnng24 the main normalization part for 's','l' tip DF
             do i=1,nosurf
                hhhb=vstar3(i)**0.333333
                if(tip.ne.'c'.and.tip.ne.'g')denshh(i)=1.
 c                  write(*,*) 'df_norm0',denshh(i),vstar3(i)
-c this comes from the velocity integration
+c this comes from the velocity integration [Eq.8 GorelenkovNF05]
                if(abs(gam-1.).lt..001) then
                   cvsld(i)=alog(1./vstar3(i)+1.)/3.
                   denshh(i)=denshh(i)*(0.5+hhhb**2/3.*(0.5*alog((1.+hhhb
@@ -1527,7 +1542,7 @@ c     The following expression doesnot contain ph * 2 which comes from the
 c     comparison of Frank's value and real Alphas pressure.
 c This 3/2 comes from the definition of temperature as a 2/3 of the mean
 c kinetic energy.
-                  denshh(i)=3./2.*betah0(ihsps)*ph(i,ihsps)*4.755e12
+                  denshh(i)=3./2.*betah0(ihsps)*ph(i,ihsps)*4.755e12    ! tip 'l','s'
      &                 *b0oo**2/(ph(1,ihsps)*vi**2*ai*denshh(i))
                endif
 c                  write(*,*)  rgrid(i),rhoprf(i)
@@ -1579,9 +1594,10 @@ c         pause
          return
       endif
       call funder4(ppsi(i0),vstar3(i0),psior,dvstrdpsi,vstar)
-cnng13 define vstar to be constant for FY14 milestone
-cnng13      vstar=0.96**3
-cnng14      vstar=0.48**3
+cnng21 to specify the setup for Lin's comparison of m=1/n=1 fishbone/internal kink
+#ifdef _flatdf
+         vstar=1.   ! this way vcrit=v0
+#endif
 cnng13
 c     Here dfalpdpsi is derivative over the psi, 
 c     dfalpdv is the density itself
@@ -1629,10 +1645,21 @@ c recycle tiloc variable
              dfalpdpsi=dfalpdpsi*tiloc
              dfalp=dfalp*tiloc
           else
-             dfalp=dfalp*exp(-vinstant1**2)
-             dfalpdpsi=dfalpdpsi*exp(-vinstant1**2)/cv
+             if(tip.ne.'i')then
+                dfalp=dfalp*exp(-vinstant1**2)
+                dfalpdpsi=dfalpdpsi*exp(-vinstant1**2)/cv
+             else
+cnng23 adding BOT feature for ICRH H-minority, from NOVA_param, extra read: chidelt(4),(5),(6)
+                call bump_on_tail(vinstant1,dfbot,fbot,
+     &               1,chidelt(4),chidelt(5),chidelt(6))
+                dfalp=dfalp*fbot
+                dfalpdpsi=(dfalpdpsi/cv)*fbot
+                dfalpdv=dfalp*dfbot
+             endif
           endif
-          dfalpdv=-2.*vinstant1*dfalp
+          if(tip.ne.'i')then
+             dfalpdv=-2.*vinstant1*dfalp
+          endif
           if(tip.eq.'i')then
              call funder4(ppsi(i0),th(i0,ihsps),psior,dtidpsi,tiloc)
              call funder4(ppsi(i0),denshh(i0),psior,dnidpsi,dniloc)
@@ -1640,7 +1667,7 @@ c recycle tiloc variable
 c
              dfalpdpsi=dfalpdpsi*(1.+etai*(-1.5+vinstant1**2))
           endif
-      else    ! slowing down, beam and "general" DF 
+      else    ! tip 's','l' slowing down, beam and "general" DF 
           call fun4(ppsi(i0),cvsld(i0),psior,cv)
           vinstant=min(vinstant1,1.)
           vinst2=vinstant*sqrt(2.)
@@ -1697,7 +1724,7 @@ c here we finally calculate the derivative $d F / d\psi $
          call fun4(ppsi(i0),b2d(i0,1),psior,hhhb)        ! HFS value of B^2 is hhhb
          call fun4(ppsi(i0),b2d(i0,nts0/2),psior,chis)   ! the same is for LFS here: chis
          chis=sqrt(1.-hhhb/chis)
-ckg central pitch angle calculation
+ckg central pitch angle calculation p0ga=v||/v, v|| has sign
          p0ga=sqrt(abs(1-pmu*hhhb/b2d(1,1)/rax))*sigm
       endif
 c if Lorentz collisional scattering coefficient is used
@@ -1795,11 +1822,11 @@ c     &        ,pmu
                vstar=0.5*(exp(-hhhb**2)+exp(-((p0ga+chidelt(1))
      &              /dpga)**2))/cnorm
             endif
-         else
+         else   ! here 'i' and 'h' and 'c' work
             hhhb=(pmu/rax-p0ga)/dpga
             vstar=exp(-hhhb**2)/cnorm            
          endif
-         dfalp=dfalp*vstar
+         dfalp=dfalp*vstar    ! F for 'i' 'h' 'c'
 c Following expression includes anisotropy drive
          if(tip.eq.'g')then
             dfalpdv=dfalpdv*vstar
@@ -1860,12 +1887,13 @@ ckg     &              ,dchidv,hhdenom
             endif
          else
             dfalpdv=dfalpdv*vstar
-     &           +4.*pmu*dfalp*hhhb/(dpga*rax*vinstant1)
+     &           +4.*pmu*dfalp*hhhb/(dpga*rax*vinstant1)    ! dF/dv for 'i' 'h' 'c'
          endif
 c one can use this simplification where we neglected exact integration
 c to improve accuracy but may be OK without it
 c2*dfalp/vinstant1
- 15      dfalpdpsi=dfalpdpsi*vstar
+ 15      dfalpdpsi=dfalpdpsi*vstar    ! dF/dPsi for 'i' 'h' 'c'
+c a good place to modify DF pitch angle dependence
       endif
 cnng14 to account for three energy sources in the beam distribution function
 c      see above definition for xfull xhalf
@@ -1890,10 +1918,15 @@ cnng20         xhalf=0.
 c      dfalpdv=0.
 c      write(*,*)'chi,df__df,dfdv,dfdpsi',p0ga,dfalp,dfalpdv
 c     &     ,dfalpdpsi
-      return
+      return  ! end of distrfun
+ 101  dfalpdv=0.
+      dfalp=0.
+      dfalpdpsi=0.
+      hnub=0.
+      hchirp=0.
       end
 c*********************************************************
-      subroutine eigenmod(b0oo,b0,condec,condic,dbobmax,dbobmaxs,
+      subroutine eigenmod(b0oo,b0,condec,condic,dencf,dbobmax,dbobmaxs,
      &     dnonmax,grps2,rgridc,min,min_f,max,max_f,ntae,scalvavf,
      &     valfv,wtae,deltk,ximax)
       include 'clich1'
@@ -1903,7 +1936,7 @@ c*********************************************************
       common/functn/omreal,eigfun(nn,mt,3),eigfun_s(nn,mt,3)
       common/funct/xkpop(nn,mt,nts,3)
       dimension delkintgr(nn),grps2(1000),rgridc(1000),
-     &     condec(1000),condic(1000)
+     &     condec(1000),condic(1000),dencf(1000,2)
       complex wtae
 ccc  choose the sign of om to be same as alpha's wstar to get instability
 ccc  for n>0, om=-omreal; for n<0, om=omreal, the former is usual
@@ -1929,6 +1962,9 @@ c      valfv=2.18e6*scalvavf*b0oo*rax/r/sqrt(rho0)
          rgridc(i)=rgrid(i)
          condec(i)=conde(i)
          condic(i)=condi(i)
+         dencf(i,1)=denc(i,1)
+         dencf(i,2)=denc(i,2)
+         dencf(i,3)=denc(i,3)
       enddo
       call asimp(rgrid(4),delkintgr(4),nosurf-3,deltk)
       deltk=deltk*abs(wtae)**2*1.e-2*psitot*rho0*2./scalvavf**2
@@ -1949,11 +1985,11 @@ c      valfv=2.18e6*scalvavf*b0oo*rax/r/sqrt(rho0)
                   i0=max0(1,i-1)
                   i0=min0(nosurf-3,i0)
                   theta1=(min+im-1)*2.*3.1415926*real(jts-1)/real(mth)
-                  hhhdbobs=sqrt(grpssq2d(i,jts))/b2d(i,jts)**2
+                  hhhdbobs=sqrt(grpssq2d(i,jts))/b2d(i,jts)              ! **2 cf. mhdidst.f bs()
      &                 *((min+im-1-ntae*qoo(i))*eigfun(i,im,3)
      &                 /xjacob2d(i,jts)-eigfun(i,im,1)*shear2d(i,jts))
                   dbobmaxs=amax1(dbobmaxs,2.*abs(hhhdbobs))
-                  hhhdbob=hhhdbob+sqrt(grpssq2d(i,jts))/b2d(i,jts)**2
+                  hhhdbob=hhhdbob+sqrt(grpssq2d(i,jts))/b2d(i,jts)       ! **2
      &                 *((min+im-1-ntae*qoo(i))*eigfun(i,im,3)
      &                 /xjacob2d(i,jts)-eigfun(i,im,1)*shear2d(i,jts))
                   hhhdnon=hhhdnon+eigfun(i,im,1)*cos(theta1)
@@ -2425,8 +2461,8 @@ c gives Major radius at 'low field' side at given Psi
       return
       end
 c**********************************************************************
-c gives Major radius  given Psi index
-      function ratpsii(ii0,psii,bii)
+c gives Major radius & B at given Psi index
+      function ratpsii(ii0,psii,bii,bif)
       include 'clich1'
       include 'clich2'
       include 'orb2d.par'
@@ -2435,6 +2471,7 @@ c gives Major radius  given Psi index
       ratpsii=rr(ii00,1)
       psii=ppsi(ii00)
       bii=b2d(ii00,1)
+      bif=rg2d(ii00)/r0
       return
       end
 c**********************************************************************

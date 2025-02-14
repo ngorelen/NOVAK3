@@ -2,7 +2,7 @@ c**********************************************************************
 c This subroutine is modified from the original growth to allow the
 c calculation of the principal part of the dW_k
       subroutine growth_prpl(ai,aeqv,b0oo,deltk,dfalp,dfalpdv
-     &     ,dpga,dintgr,fo,hnub,hnub_se,hwb1,mt,mtl,nnres,eps,
+     &     ,dpga,dintgr,fo,hnub,hnb,hnub_se,hwb1,mt,mtl,nnres,eps,
      &     epsp,gamkom,gamkomflr,iav,im1,iter,immax,isrfmax,ntgr,
      &     nosurf,nroot,omkom,omkomflr,p0ga,pk,psiavres,psitot,rfres,
      &     rma,rmi,symm,vi,vres,scalvavf,tip,xfow,zi,istart)
@@ -26,6 +26,7 @@ c
       dimension dbob(iberk),gberkintmu(nmu,iberk,4)
      &     ,gberkintpfi(npf,iberk,8),gberkis(iberk,8),hwb1(nnres,
      &     -mtl:mtl),hnub(nnres,-mtl:mtl),hnub_se(nnres,-mtl:mtl)
+     &     ,hnb(nnres,-mtl:mtl)
      &     ,hchirp(2,nres2,-mtl_m1:mtl_m1),gberkimuch(nmu,2)        ! chrp arrays
      &     ,gberkipfich(npf,2,2),gberkisch(2,2)
      &     ,gbimuch(nmu,iberk,iberk),gbipfich(npf,iberk,iberk,2),
@@ -47,12 +48,12 @@ c stuff for m1 study
       save rf
 ckg_sat amplitude saturation stuff 
       dimension 
-c      common/lbq_sat/??? may give some errors during the compilation???
+c      common/rbq_sat/??? may give some errors during the compilation???
      &     vres_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
      &     fdist_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
      &     gam_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
      &     grps2(1000),rgrid(1000),
-     &     condec(1000),condic(1000),
+     &     condec(1000),condic(1000),denc(1000,3),
      &     vgam_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
      &     dwv_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
      &     dwp_sat(npf,nmu,-mtl_m1:mtl_m1,2,2),
@@ -79,7 +80,9 @@ ckg_plot the distribution function
 c_________graph\/staff
       character col(npf),pat(npf),tip*1,fow*11,filename*11
       complex wtae
-      data omkomis/2*0./,gamkomis/12*0./,gtrap1/6*0./
+      data omkomis/2*0./,gamkomis/12*0./,gtrap1/6*0./,idlt/9/ ! idlt's comments see below 
+      nmuc=150
+      npfc=200
       gamintpfi=0.                              ! following eqlts avoid complains with --chk flag
       omintpfi=0.
       gtrap=0.
@@ -121,7 +124,7 @@ c_________graph\/staff
 c      if(mt_m1.lt.mt)write(*,*) mt_m1, mt,
 c     &     'warning: check your dimension of MT in GROWTH'
       write(fow(5:8),'(f4.2)') xfow
-      do i=1,npf
+      do i=1,npfc
          col(i)='white'
          pat(i)='solid'
       enddo
@@ -130,18 +133,20 @@ c========== definitions for integrations
       psma=bfo(b,b0,(rmi+rma)/2.,r0,0.,z0)
       psma=psio(dpsi,ddpsi,dzpsi,rma,r0,z0,z0,am)
       psmi=psio(dpsi,ddpsi,dzpsi,rmi,r0,z0,z0,am)
-      call eigenmod(b0oo,b0,condec(1),condic(1),dbobmax,dbobmaxs,dnonmax
-     &     ,grps2(1),rgrid(1),min,min_f,max,max_f,ntae,scalvavf,valfv,
+      call eigenmod(b0oo,b0,condec(1),condic(1),denc(1,1),
+     &     dbobmax,dbobmaxs,dnonmax,grps2(1),rgrid(1),
+     &     min,min_f,max,max_f,ntae,scalvavf,valfv,
      &     wtae,deltk,ximax)
       write(*,*) ' max of Xi[m],dB/B,dB/B_sin and dn/n are',ximax
      &     ,dbobmax,dbobmaxs,dnonmax
       call rescondif(ai,alpha,b0,b0oo,eps,epsp,im1,iter,ntgr
-     &     ,psiav,psitot,psma,psmi,pmu,nmu,qpf,npf,r0,rf,rma
+     &     ,psiav,psitot,psma,psmi,pmu,nmuc,qpf,npfc,r0,rf,rma
      &     ,rmi,symm,t0,tip,valfv,v,nv,vi,z0,zi,wvpr,wqvpr,wd,wb
-     &     ,xfow,xhp)
+     &     ,xfow,xhp,pk)
 c
-      call eigenmod(b0oo,b0,condec(1),condic(1),dbobmax,dbobmaxs,dnonmax
-     &     ,grps2(1),rgrid(1),min,min_f,max,max_f,ntae,scalvavf,valfv,
+      call eigenmod(b0oo,b0,condec(1),condic(1),denc(1,1),
+     &     dbobmax,dbobmaxs,dnonmax,grps2(1),rgrid(1),
+     &     min,min_f,max,max_f,ntae,scalvavf,valfv,
      &     wtae,deltk,ximax)
 ckg convert the frequency to the shifted by the cyclotron frequency
 ckg by multiplying by -3.7, so from -415 kHz it is changed to 1545kHz
@@ -164,8 +169,14 @@ c  f~/(v^3 + v*^3)^(2-gam) and gam=1 corresponds to the slowing down df.
       gam=1.
       gamkom=16.18282*ai**2*vi**4*sign(abs(wtae),real(wtae))/xhp/zi
      &     /b0oo/b0/4./deltk/r0
+#ifdef nbiE0xtra
+      gamkom=gamkom*(nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))**1.5     ! 1.5 accounts 4 xhp
+#endif
       gamkomhlp=gamkom
       omstari=real(ntae)*xhp*vi*10.
+#ifdef nbiE0xtra
+      omstari=omstari*nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.)
+#endif
       omstar=omstari/sign(abs(wtae),real(wtae))
       write(*,*) 'omstar=',omstar
 ckg Note that it is assumed negative for frequency to be in the
@@ -177,7 +188,8 @@ c      if(im1.eq.2) wtae=wtae-0.1885
       w_rotres=0.
       call omstari_calc(ai,omstari,vi,zi)
 cnng13 analytic rotation
-      if(im1.ne.0) then
+c      if(im1.ne.0) then   ! include rotation profile from transp.dat file
+      if(im1.ne.1) then   ! not to include rotation profile
 c         wtae=(0.,0.)
          w_rot0=0.
          w_rot1=0.
@@ -199,31 +211,31 @@ c rotation frequencies are read in my units 10^6 rad/sec^-1
          else
             call psi_res(w_rotres)
          endif
-         w_rotres=w_rot0-w_rotres**p_rot*(w_rot0-w_rot1)
-         write(*,*) 'To include rotation use w_rot0=',w_rot0
-     &        ,' w_rot1=',w_rot1,' w_rotres=',w_rotres
       endif
+      w_rotres=w_rot0-w_rotres**p_rot*(w_rot0-w_rot1)
+      write(*,*) 'To include rotation use w_rot0=',w_rot0
+     &     ,' w_rot1=',w_rot1,' w_rotres=',w_rotres
       write(*,*) 'om= ',wtae,'f= ',real(wtae)/2./3.1415926
       is1=1
       ipf1=1
       write(fow(1:4),'(f4.2)') scalvavf
-      if(ai.eq.4..and.tip.ne.'i')then
+      if(ai.eq.4..and.tip.ne.'i')then      ! Alphas
          filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
      &        /'a'
          ihsps=3
-      else if(ai.eq.1..and.tip.ne.'i')then
+      else if(ai.eq.1..and.tip.ne.'i')then ! Hydrogen
          filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
      &        /'h'
          ihsps=3
-      else if(ai.eq.2..and.tip.ne.'i')then
+      else if(ai.eq.2..and.tip.ne.'i')then ! Deuterium, good for thermal ion Landau damp.
          filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
      &        /'d'
          ihsps=1
-      else if(ai.eq.3..and.zi.eq.2.and.tip.eq.'h')then
+      else if(ai.eq.3..and.zi.eq.2.and.tip.eq.'h')then ! He3
          filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
      &        /'he3'
          ihsps=3
-      else if(ai.eq.3.)then
+      else if(ai.eq.3.)then                            ! Tritium, good for thermal ion Landau damp.
          filename='gam'//fow(1:1)//fow(3:4)//'.'//fow(5:5)//fow(7:8)/
      &        /'t'
          ihsps=2
@@ -270,44 +282,46 @@ c the test is only initiated if _test is defined during the compilation
       if(itest.eq.1)then
 c         symm=1.
          is1t=1
-         is2t=1
-c is1t
-c
-c         ipf1t=indx(qpf(1),npf,1.)
+         is2t=is1t
+c         ipf1t=indx(qpf(1),npfc,1.)
 c at 100,50 runs OK if the broadened region is gdp2pf=0.1 inside fungw0 
          ipf1t=1
-         ipf2t=npf
-         ipf1t=65
-         ipf2t=ipf1t
-c
-         imu1t=1
-c         imu1t=1                !8
-c         imu2t=nmu              !8
-         imu1t=97
-         imu2t=97
+         ipf2t=npfc
+         ipf1t=33                ! for work/nova/iter_isep21/iter_131041steadystateHResol test runs
+         ipf2t=33                ! for work/rbq/d3d_176523oscill/t0615
+c         ipf2t=ipf1t
+c mu limits
+         imu1t=1                 !8 1   -> 0
+         imu2t=nmuc              !8 nmu -> R0+a
+         imu1t=106                ! for work/nova/iter_isep21/iter_131041steadystateHResol test runs
+         imu2t=106                ! for work/rbq/d3d_176523oscill/t0615
+c         imu2t=imu1t+1           ! +1 m.b. enough extra point to control the calculations
 c To test for each bounce harmonics:
 c make it(itestil) =10 to see all the resonance condition or =1 for simpler
 c output or it = 20 for m1 stability
 c no extra output if =30 just run with limited l numbers
-         itestil=10
+         itestil=10   ! 0 is default, i.e. when no choice is made for harmonics
          il1t=-mtl
          il2t=mtl
-         il1t=-6
-         il2t=-5
-c
-c
-c         il1t=-6                !define here il{1,2}t for itestil=1,10,30
-c
+         il1t=-4
+         il2t=-2
+         il1t=-20
+         il2t=20
+                                ! define here il{1,2}t for itestil=1,10,30
+c         il1t=-23
+c         il2t=-21
+c         il1t=-7                ! for work/rbq/d3d_176523oscill/t0615
+c         il2t=-5
 c
 c         il2t=il1t+4
 c To test for each mode harmonics:
-         itestm=0
+         itestm=1               ! either 1 or 0; deeper loop for itest=1
 c allows to work only with harmonics at such numbers, which are the
 c poloidal numbers, which differs from Max M value printed!!!!
          im1t=min_f
          im2t=max_f
-c         im1t=5
-c         im2t=6
+c         im1t=5    ! for work/rbq/d3d_176523oscill/t0615
+c         im2t=7
       else
          im1t=min_f
          im2t=max_f
@@ -316,9 +330,9 @@ c         im2t=6
          is1t=is1
          is2t=2
          ipf1t=ipf1
-         ipf2t=npf
+         ipf2t=npfc
          imu1t=1
-         imu2t=nmu
+         imu2t=nmuc
          itestil=0
          itestm=0
          if(im1.eq.1)is2t=1
@@ -327,14 +341,29 @@ c         im2t=6
          is1t=1
          is2t=1
       endif
+#ifdef nbiE0xtra
+      ivmax=indx(v,nv,
+     &     sqrt(nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))+0.07)
+      print *,'ivmax=',ivmax, indx(v,nv,
+     &     sqrt(nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))), 
+     &     'nbiE0xtra',nbiE0xtra,'ai=',ai,'vi=',vi
+#endif
+      irept_sat=1
+#ifdef _dev
+      nrept=2
+      print *,'Going to _dev loop with nrept=2'
+c      nrept=1
+c22 this repetition is introduced to account for only important sidebands for averaging of of nu_scatt
+      do irept_sat=1,nrept
+#endif
       do is=is1t,is2t
          sigm=1.
          if(is.eq.2) sigm=-1.
 ctem
-         if(im1.eq.1.and.itest.ne.1)ipf2t=npf*3/4
+         if(im1.eq.1.and.itest.ne.1)ipf2t=npfc*3/4
 c         if(tip.eq.'r')then
-c            ipf1t=npf*3/7.
-c            ipf2t=npf*5/7.
+c            ipf1t=npfc*3/7.
+c            ipf2t=npfc*5/7.
 c         endif
          do ipf=ipf1t,ipf2t
             imlmax=0
@@ -367,7 +396,7 @@ c         endif
                gtrap(ipf,4)=0.
             endif
 c
-            deltqx=sigm*(qpf(npf)-qpf(1)-1.)/2.
+            deltqx=sigm*(qpf(npfc)-qpf(1)-1.)/2.
             ilmax=-1000
             ilmin=1000
             imu_m1=0
@@ -480,6 +509,9 @@ c
                call zero(dfalpdv_m1(1,-mtl_m1),nv*(2*mtl_m1+1))
                ilmax=-1000
                ilmin=1000
+cnng21 should be avoided                   hnub=1.e-3
+               hnb=0.
+               hnub=0.
                do imtae=min1,max1
                   imtae0=imtae+1-min
 c     hereafter the summ over the bounce harmonics
@@ -501,7 +533,8 @@ c                     ml10=-mtl
                         nres=0
                         ires0=0
                         if(itestil.eq.10.or.itestil.eq.20)write(*,*)
-     &                   ' V, <V_||>, W_d, W_b, W_res,qav,psiav; m,l'
+     &                   '    V,     <V_||>,        W_d,         W_b,'
+     &                  ,'      W_res,       qav,      psiav; m,l'
      &                       ,imtae0,il
                         do iv=1,nv
                            if(ires0.eq.0.and.abs(wb(iv,imu,ipf,is))
@@ -546,7 +579,7 @@ c     assume no more then two roots
                            vres_sat(ipf,imu,il,2,is)=vres(2,il)
                            vres_sat(ipf,imu,il,1,is)=vres(1,il)
 #ifdef _dev
-c this statement chooses 1 of two resonances for smooth representation in LBQ
+c this statement chooses 1 of two resonances for smooth representation in RBQ, see also below
                            if(is.eq.1) then
                               if(vres(2,il).gt.vres(1,il)) 
      &                             vres_sat(ipf,imu,il,1,is)=-vres(2,il)
@@ -627,7 +660,7 @@ c15
 c                         if(ipf.eq.74.and.imu.eq.10.and.il.eq.-6) pause
 c15
                            dwv_m1(ires,il)=dwv
-                           ipfb=amin0(npf,ipf+1)
+                           ipfb=amin0(npfc,ipf+1)
                            if(tip.eq.'r')then
                               if(wb(ires10,imu,ipfb,is).eq.0.)ipfb=ipfb
      &                             -1
@@ -658,12 +691,25 @@ c     derivatives dfalpdv,dfalpdpsi are normalized to V_al0,
 c     Psi_edge and are in cm^-3
                            call distrfun(ai,b0*b0oo,dfalp(ires,il)
      &                          ,dfalpdv(ires,il),dfalpdpsi,dpga,eps
-     &                          ,psiavres(ires,il),gam,hnub(ires,il),  !coll.scatt.freq. in 10^6 sec^-1
+     &                          ,psiavres(ires,il),gam,hnubiresil,  !coll.scatt.freq. in 10^6 sec^-1
      &             hchirp(1,ires,il),ihsps,iter,qpfi,p0ga,pmui,rvpar   !hchirp(2,,) drag sl.d.freq.in sec^-1; (1,,) coll.scat. in sec^-1
-     &                         ,sigm,tb,tip,vres(ires,il),vi,v(nv),0.,
-     &                          z0,xhp,zi,dwbdpphi,wb_res,istart)
-cdelete just a test line                           hnub(ires,il)=hnub(ires,il)*0.1
+#ifdef nbiE0xtra
+     &                         ,sigm,tb,tip,vres(ires,il),vi*sqrt(
+     &          nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.)),v(ivmax),
+#else
+     &                         ,sigm,tb,tip,vres(ires,il),vi,v(nv),
+#endif
+     &                          0.,z0,xhp,zi,dwbdpphi,wb_res,istart)
 ckg_sat
+                           hnub(ires,il)=hnubiresil
+                           hnb(ires,il)=hnubiresil
+                           if(irept_sat.eq.1.or.
+     &                       (irept_sat.eq.2.and.il.ge.indx_sat(imu,is)
+     &                       .and.il.le.indx_sat(imu,is)+2*idlt))then
+                              hnb(ires,il)=hnubiresil
+                           else
+                              hnb(ires,il)=0.
+                           endif
                            fdist_sat(ipf,imu,il,ires,is)=dfalp(ires,il)
                            bgy_sat(ipf,imu,il,ires,is)=psiavres(ires,il)
                            meigfun(ipf,imu,il,ires,is)=imtae0
@@ -743,9 +789,17 @@ c this becomes nu_eff^3 and in units 10^18 sec^{-3}, yes it does by having dOm/d
                            hnub(ires,il)=hnub(ires,il)*(hwb1(ires,il)
      &                          *abs(wtae)*r0/real(ntae)/vi/10.)
      &                          **2*pmu(imu)/r0
+#ifdef nbiE0xtra
+                           hnub(ires,il)=hnub(ires,il)/
+     &                     (nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))
+#endif
 c this is nu_se^2 in units sec^-2 ++
                            hnub_se(ires,il)=hchirp(2,ires,il)*1.e6*
      &             abs(hwb1(ires,il))*abs(wtae)*r0/real(ntae)/vi/10.
+#ifdef nbiE0xtra
+                           hnub_se(ires,il)=hnub_se(ires,il)/
+     &                  sqrt(nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))
+#endif
                            dfalp(ires,il)=dfalp(ires,il)*hhh1
 c     c       this variable is the key to succesful resonance
                            dintgr(il,ires,4,2)=-1.01
@@ -776,7 +830,7 @@ c
 c M1 stability is initiated here
 c:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
                if(im1.ne.0.and.im1.ne.3)then
-                  if(pk.ne.1.) stop 'pk.ne.1.'
+                  if(pk.ne.1.) stop 'pk.ne.1.'   ! for m1 stability option
                   do ivm1=1,nv
                      if(ivm1.eq.ind(1).or.ivm1.eq.ind(1)+1.or.(nroot(0)
      &                    .gt.1.and.(ivm1.eq.ind(2).or.ivm1.eq.ind(2)
@@ -822,8 +876,15 @@ c     Psi_edge and are in cm^-3
                         call distrfun(ai,b0*b0oo,dfal,dfalpdv_m1(ivm1,il
      &                       ),dfalpdpsi,dpga,eps,psiav(ivm1,imu,ipf,is)
      &                    ,gam,hhh1,hhh2,ihsps,iter,qpfi,p0ga,pmui,rvpar
-     &                       ,sigm,tb,tip,v(ivm1),vi,v(nv),0.,z0,xhp,zi
-     &                       ,dwbdpphi,wb_res,istart)
+#ifdef nbiE0xtra
+c     &                         ,sigm,tb,tip,vres(ires,il),vi*sqrt(
+c     &          nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.)),v(ivmax),
+     &                       ,sigm,tb,tip,v(ivm1),vi*sqrt(
+     &          nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.)),v(ivmax),0.
+#else
+     &                       ,sigm,tb,tip,v(ivm1),vi,v(nv),0.
+#endif
+     &                       ,z0,xhp,zi,dwbdpphi,wb_res,istart)
                         if((tip.eq.'c').and
      &                       .hhh1.eq.-100)then
                            dfalpdv_m1(ivm1,il)=dfalpdv_m1(ivm1,il)*0.5
@@ -906,9 +967,11 @@ c                        endif
                         do imtae=min1+1-min,max1+1-min
                            hhh11=hhh11+fo(5,imtae,il,ires)
                            hhh2=hhh2+fo(4,imtae,il,ires)
+cnng24                           if(itestm.eq.1) print *,'fos',fo(1,imtae,il,
+c     & ires),fo(2,imtae,il,ires),fo(3,imtae,il,ires),fo(4,imtae,il,ires)
                         enddo
                         if(itestm.eq.1)write(*,*) 'tst3',ires,il,hhh11
-     &                       ,hhh2
+     &                       ,hhh2,imtae,il,ires
                         hhh2=hhh2**2+hhh11**2
 cberk
                         if(im1.eq.0.or.im1.eq.3)then
@@ -959,7 +1022,7 @@ c coll.sl.down in sec^-2
                         gberkimuch(imu,2)=gberkimuch(imu,2)+
      &                     hhb*hnub_se(ires,il)
 c                    following expr integrand in VD last eq in 
-c                            /u/Ql../Ql../ChirpStabXtendExt.pdf
+c                            /u/Ql../Ql../ChirpStabXtendExt.pdf to evaluate chirping criterion
                            do idrg=1,iberk
                               do isct=1,iberk
 cnng                  ratio of scatt/drag ^\/^ frqncs is this first parameter
@@ -991,7 +1054,9 @@ c     &                   *1.e6*vi*dwp_sat(ipf,imu,il,ires,is)/xhp
 cdel-old-Vinic-contrib-from dPfi
 c coll. scatt. freq. (hnub is nu_eff^3 and in units 10^18 sec^{-3}) +
                         gberkimuch(imu,1)=gberkimuch(imu,1)+
-     &                     hhb*hnub(ires,il)*1.e+18
+cnng21
+     &                     hhb*hnb(ires,il)*1.e+18
+c     &                     hhb*hnub(ires,il)*1.e+18
 c *abs(dwp_sat(     &                       ipf,imu,il,ires,is))**2 wrong multipl,i.e. double counting dwp
                         gbidrgavmu(imu,3)=gbidrgavmu(imu,3)+
      &                       (1./(hnub(ires,il)*1.e+18
@@ -1019,7 +1084,7 @@ ckg_sat RBQ, the same names are in RBQ.fweb file
 c                        dfdfdvdr(ipf,imu,il,ires,is)=dfalpdv(ires,il)
                         hhh2=dfalpdv(ires,il)*hhh2
                         if(itestm.eq.1)write(*,*) 'tst4',ires,il,hhh1
-     &                       ,hhh2,dfalpdv(ires,il)
+     &                ,hhh2,dfalpdv(ires,il),dfalp(ires,il)
                         hhh11=hhh1
 ckg_sat
                         gam_sat(ipf,imu,il,ires,is)=hhh2
@@ -1064,8 +1129,12 @@ c     passing w FLR
                            write(*,*) 'Mmax',imtamax,' il',il,tb,hhh
      &                          ,vres(ires,il),dwv,' ml10,ml2',ml10
      &                          ,ml2
-                           write(*,*) 'With FLR',hhh2,' W/o FLR'
-     &                          ,hhh11
+                           write(*,*) 'With FLR',hhh2,' W/o FLR' !for131041ss il-22indx-31is1ires2imu25ipf24 indx m.b. determined from rbq run
+     &     ,hhh11,'idx',il+31+(idlt*2+1)
+     &     *(is-1+2*(imu-1+nmuc*(ipf-1+npfc*0))),il,is,ires,imu,ipf,
+     &     indx_sat(imu,is),nmuc,'vgam',
+     &     vgam_sat(ipf,imu,il,ires,is),vres_sat(ipf,imu,il,1,is),
+     & vres_sat(ipf,imu,il,2,is)
                         endif
 c     c     Calculation of the cutoff contribution at v=v_\alpha0
                         if(imu.gt.1.and.dintgr(il,ires,4,2).eq
@@ -1211,50 +1280,50 @@ c????????????????
                call zero(dintgr(-mtl,1,1,2),nnres*(2*mtl+1)*4)
             enddo
 c /\ end of MU - pitch angle integration loop
-            call asimp(pmu,gamintmu(1,1),nmu,gamintpfi(ipf,1,is))
-            call asimp(pmu,gamintmu(1,2),nmu,gamintpfi(ipf,2,is))
+            call asimp(pmu,gamintmu(1,1),nmuc,gamintpfi(ipf,1,is))
+            call asimp(pmu,gamintmu(1,2),nmuc,gamintpfi(ipf,2,is))
             do ib=1,iberk
-               call asimp(pmu,gberkintmu(1,ib,1),nmu,gberkintpfi(ipf
+               call asimp(pmu,gberkintmu(1,ib,1),nmuc,gberkintpfi(ipf
      &              ,ib,2*is-1))
-               call asimp(pmu,gberkintmu(1,ib,2),nmu,gberkintpfi(ipf
+               call asimp(pmu,gberkintmu(1,ib,2),nmuc,gberkintpfi(ipf
      &              ,ib,2*is))
-               call asimp(pmu,gberkintmu(1,ib,3),nmu,gberkintpfi(ipf
+               call asimp(pmu,gberkintmu(1,ib,3),nmuc,gberkintpfi(ipf
      &              ,ib,4+is))
-               call asimp(pmu,gberkintmu(1,ib,4),nmu,gberkintpfi(ipf
+               call asimp(pmu,gberkintmu(1,ib,4),nmuc,gberkintpfi(ipf
      &              ,ib,6+is))
             enddo
-            call asimp(pmu,gberkimuch(1,1),nmu,gberkipfich(ipf,1,is))
-            call asimp(pmu,gberkimuch(1,2),nmu,gberkipfich(ipf,2,is))
+            call asimp(pmu,gberkimuch(1,1),nmuc,gberkipfich(ipf,1,is))
+            call asimp(pmu,gberkimuch(1,2),nmuc,gberkipfich(ipf,2,is))
             do idrg=1,iberk
                do isct=1,iberk
-                  call asimp(pmu,gbimuch(1,idrg,isct),nmu,gbipfich(
+                  call asimp(pmu,gbimuch(1,idrg,isct),nmuc,gbipfich(
      &                 ipf,idrg,isct,is))
                enddo
             enddo
-            call asimp(pmu,gbimuch0(1),nmu,gbipfich0(ipf,is))
-            call asimp(pmu,gbidrgavmu(1,1),nmu,gbidrgavipfi(ipf,is,1))
-            call asimp(pmu,gbidrgavmu(1,2),nmu,gbidrgavipfi(ipf,is,2))
-            call asimp(pmu,gbidrgavmu(1,3),nmu,gbidrgavipfi(ipf,is,3))
-            call asimp(pmu,gbidrgavmu(1,4),nmu,gbidrgavipfi(ipf,is,4))
+            call asimp(pmu,gbimuch0(1),nmuc,gbipfich0(ipf,is))
+            call asimp(pmu,gbidrgavmu(1,1),nmuc,gbidrgavipfi(ipf,is,1))
+            call asimp(pmu,gbidrgavmu(1,2),nmuc,gbidrgavipfi(ipf,is,2))
+            call asimp(pmu,gbidrgavmu(1,3),nmuc,gbidrgavipfi(ipf,is,3))
+            call asimp(pmu,gbidrgavmu(1,4),nmuc,gbidrgavipfi(ipf,is,4))
             if(is.eq.1) then
-               call asimp(pmu,gamintmu(1,3),nmu,gtrap(ipf,1))
-               call asimp(pmu,gamintmu(1,4),nmu,gtrap(ipf,2))
-               call asimp(pmu,gamintmu(1,7),nmu,gtrap(ipf,5))
-               call asimp(pmu,gamintmu(1,8),nmu,gtrap(ipf,6))
+               call asimp(pmu,gamintmu(1,3),nmuc,gtrap(ipf,1))
+               call asimp(pmu,gamintmu(1,4),nmuc,gtrap(ipf,2))
+               call asimp(pmu,gamintmu(1,7),nmuc,gtrap(ipf,5))
+               call asimp(pmu,gamintmu(1,8),nmuc,gtrap(ipf,6))
             endif
-            call asimp(pmu,omintmu(1,1),nmu,hhh1)
+            call asimp(pmu,omintmu(1,1),nmuc,hhh1)
             omintpfi(ipf,1)=omintpfi(ipf,1)+hhh1
-            call asimp(pmu,omintmu(1,2),nmu,hhh2)
+            call asimp(pmu,omintmu(1,2),nmuc,hhh2)
             omintpfi(ipf,2)=omintpfi(ipf,2)+hhh2
-c            write(*,*) 'Here is gamu',(gamintmu(i,5),i=1,nmu)
+c            write(*,*) 'Here is gamu',(gamintmu(i,5),i=1,nmuc)
 c            write(*,*) '----'
-            call asimp(pmu,gamintmu(1,5),nmu,gamintpfi(ipf,5,is))
-            call asimp(pmu,gamintmu(1,6),nmu,gamintpfi(ipf,6,is))
+            call asimp(pmu,gamintmu(1,5),nmuc,gamintpfi(ipf,5,is))
+            call asimp(pmu,gamintmu(1,6),nmuc,gamintpfi(ipf,6,is))
 c            write(*,*) ' ZOW>0,<0,TRPD=',gamintpfi(ipf,1,1)
 c     &           ,gamintpfi(ipf,1,2),gtrap(ipf,1)
 c            write(*,*) ' Cutoff, >0,<0',gamintpfi(ipf,3,1)*gamkom
 c     &           ,gamintpfi(ipf,3,2)*gamkom,gtrap(ipf,2)*gamkom
-            if(ipf.eq.npf.or.mod(ipf,3).eq.0)then
+            if(ipf.eq.npfc.or.mod(ipf,3).eq.0)then
             open(unit=18,file=filename,status='unknown')
             write(18,*) is,ipf+1
             write(18,*) gamkomis,omkomis,gtrap1
@@ -1282,47 +1351,47 @@ c     &           ,gamintpfi(ipf,3,2)*gamkom,gtrap(ipf,2)*gamkom
 c /\ end of integration in minor radius, i.e. P_phi
          if(itest.ne.1) ipf1t=1
          do ib=1,iberk
-            call asimp(qpf,gberkintpfi(1,ib,2*is-1),npf,gberkis(ib,2*is
+            call asimp(qpf,gberkintpfi(1,ib,2*is-1),npfc,gberkis(ib,2*is
      &           -1))
-            call asimp(qpf,gberkintpfi(1,ib,2*is),npf,gberkis(ib,2*is))
-            call asimp(qpf,gberkintpfi(1,ib,4+is),npf,gberkis(ib,4+is))
-            call asimp(qpf,gberkintpfi(1,ib,6+is),npf,gberkis(ib,6+is))
+            call asimp(qpf,gberkintpfi(1,ib,2*is),npfc,gberkis(ib,2*is))
+            call asimp(qpf,gberkintpfi(1,ib,4+is),npfc,gberkis(ib,4+is))
+            call asimp(qpf,gberkintpfi(1,ib,6+is),npfc,gberkis(ib,6+is))
          enddo
-         call asimp(qpf,gberkipfich(1,1,is),npf,gberkisch(1,is))
-         call asimp(qpf,gberkipfich(1,2,is),npf,gberkisch(2,is))
+         call asimp(qpf,gberkipfich(1,1,is),npfc,gberkisch(1,is))
+         call asimp(qpf,gberkipfich(1,2,is),npfc,gberkisch(2,is))
          do idrg=1,iberk
             do isct=1,iberk
-               call asimp(qpf,gbipfich(1,idrg,isct,is),npf,gbisch
+               call asimp(qpf,gbipfich(1,idrg,isct,is),npfc,gbisch
      &              (idrg,isct,is))
             enddo
          enddo
-         call asimp(qpf,gbipfich0(1,is),npf,gbisch0(is))
-         call asimp(qpf,gbidrgavipfi(1,is,1),npf,gbidrgavis(is,1))
-         call asimp(qpf,gbidrgavipfi(1,is,2),npf,gbidrgavis(is,2))
-         call asimp(qpf,gbidrgavipfi(1,is,3),npf,gbidrgavis(is,3))
-         call asimp(qpf,gbidrgavipfi(1,is,4),npf,gbidrgavis(is,4))
+         call asimp(qpf,gbipfich0(1,is),npfc,gbisch0(is))
+         call asimp(qpf,gbidrgavipfi(1,is,1),npfc,gbidrgavis(is,1))
+         call asimp(qpf,gbidrgavipfi(1,is,2),npfc,gbidrgavis(is,2))
+         call asimp(qpf,gbidrgavipfi(1,is,3),npfc,gbidrgavis(is,3))
+         call asimp(qpf,gbidrgavipfi(1,is,4),npfc,gbidrgavis(is,4))
 c
-         call asimp(qpf,gamintpfi(1,1,is),npf,gamkomis(1,is))
-         call asimp(qpf,gamintpfi(1,2,is),npf,gamkomis(2,is))
-         call asimp(qpf,gamintpfi(1,3,is),npf,gamkomis(3,is))
+         call asimp(qpf,gamintpfi(1,1,is),npfc,gamkomis(1,is))
+         call asimp(qpf,gamintpfi(1,2,is),npfc,gamkomis(2,is))
+         call asimp(qpf,gamintpfi(1,3,is),npfc,gamkomis(3,is))
          gamkomis(3,is)=gamkomis(3,is)*gamkom
-         call asimp(qpf,gamintpfi(1,4,is),npf,gamkomis(4,is))
+         call asimp(qpf,gamintpfi(1,4,is),npfc,gamkomis(4,is))
          gamkomis(4,is)=gamkomis(4,is)*gamkom
-         call asimp(qpf,gamintpfi(1,5,is),npf,gamkomis(5,is))
-         call asimp(qpf,gamintpfi(1,6,is),npf,gamkomis(6,is))
-         call asimp(qpf,omintpfi(1,1),npf,hhh1)
+         call asimp(qpf,gamintpfi(1,5,is),npfc,gamkomis(5,is))
+         call asimp(qpf,gamintpfi(1,6,is),npfc,gamkomis(6,is))
+         call asimp(qpf,omintpfi(1,1),npfc,hhh1)
          omkomis(1)=omkomis(1)+hhh1
-         call asimp(qpf,omintpfi(1,2),npf,hhh2)
+         call asimp(qpf,omintpfi(1,2),npfc,hhh2)
          omkomis(2)=omkomis(2)+hhh2
          if(is.eq.1) then
-            call asimp(qpf,gtrap(1,1),npf,gtrap1(1))
-            call asimp(qpf,gtrap(1,2),npf,gtrap1(2))
-            call asimp(qpf,gtrap(1,3),npf,gtrap1(3))
+            call asimp(qpf,gtrap(1,1),npfc,gtrap1(1))
+            call asimp(qpf,gtrap(1,2),npfc,gtrap1(2))
+            call asimp(qpf,gtrap(1,3),npfc,gtrap1(3))
             gtrap1(3)=gtrap1(3)*gamkom
-            call asimp(qpf,gtrap(1,4),npf,gtrap1(4))
+            call asimp(qpf,gtrap(1,4),npfc,gtrap1(4))
             gtrap1(4)=gtrap1(4)*gamkom
-            call asimp(qpf,gtrap(1,5),npf,gtrap1(5))
-            call asimp(qpf,gtrap(1,6),npf,gtrap1(6))
+            call asimp(qpf,gtrap(1,5),npfc,gtrap1(5))
+            call asimp(qpf,gtrap(1,6),npfc,gtrap1(6))
          endif
       enddo
 c /\ end of integration for co(+trapped) and contragoing particles. 
@@ -1402,6 +1471,7 @@ c     &     -gtrap1(1)*gamkomis(2,1)/gamkomis(1,1)
       write(*,*) 'Total growth rate w/o FLR',gamkomT
       write(*,*) 'Total growth rate withFLR',gamkomflr
 ckg writing simple output
+      if(irept_sat.eq.1)then
       write(57,*) '>Finite Orbit Width res. (FOW) for fast ion specie:'
       write(57,*) ' Mass/m_p'
       write(57,*) ai
@@ -1444,6 +1514,7 @@ ckg writing simple output
       gdTot=grL+gCL+gHL+geL+gecoll+gcontL+gTL+gDL
 c  excluding some damping can be done by hands but must be commented below
       close(57)
+      endif  ! endif of irept_sat
 ckg
       endif
       write(*,*) 'Principal part w/o FLR',omkomis(1)
@@ -1473,46 +1544,47 @@ c only with the current (alphas or beams) growth rates so it makes sense
 c to run alphas (after beam runs) to include both in amplitude evluation.
 c In alpha growth calculations we recreate a file with the name Xin..mode. The 
 c code does it autmatically.
+      call system("rm -f buf3")
       c46=
-     &"ls -l eigenf|awk '{print $NF}'>/tmp/buff"
+     &"ls -l eigenf|awk '{print $NF}'>buf3"
       call system(c46)
-      open(11,file='/tmp/buff',status='old')
+      open(11,file='buf3',status='old')
       read(11,*) c46
 c read the egn.. like file name for the mode
       egnid= trim(adjustl(c46))
       close(11)
       if(c46(1:3).eq.'egn') then
 c make an egn....mode from it
-         c46="sed s/'egn'/'Xin'/ /tmp/buff > /tmp/buff1"
+         c46="sed s/'egn'/'Xin'/ buf3 > buf31"
          call system(c46)
 c open Xin..mode file, where Xin.. file has like-Xin01w.... name in it
-         open(11,file='/tmp/buff1',status='old')
+         open(11,file='buf31',status='old')
          read(11,*) c46
          write(*,*) trim(adjustl(c46))
          close(11)
 c modify the file to add other information: gdTot and gamkomT (or with/w/o FLR gamkomflr/gamkomT)
          write(cgw(1:60),'(5e12.4)') abs(real(wtae))*1000*0.5/3.1415926,
-     &     gamkomflr,gdTot,ximax,dnonmax
+     &     gamkomflr,gdTot-gcontL,ximax,dnonmax
 c change its contents to add frequencies and growth rates
-         call system("sed s/'6 ;S'/'11 ;S'/ "//c46//" > /tmp/buff")
+         call system("sed s/'6 ;S'/'11 ;S'/ "//c46//" > buf3")
          call system
-     &   ("sed s/' ;N'/'"//cgw(1:60)//" ;N'/ /tmp/buff > /tmp/buff1")
+     &   ("sed s/' ;N'/'"//cgw(1:60)//" ;N'/ buf3 > buf31")
          call system(
      &      "sed s/'igrid;'/'igrid,gw[kHz],gwkwFlr,gdTot;'/
-     &      /tmp/buff1>/tmp/buff")
+     &      buf31 > buf3")
 c here careful check should be done for gdTot summation - 
-c all terms or not are included? grL=RadDamp;...
+c all terms or not are included? grL=RadDamp is include, but no gcontL
          call system(
-     &"sed s/'gdTot;'/'gdTot=grad+gCL+gHL+geL+gecoll+gcontL+gTL;'/
-     &/tmp/buff> /tmp/buff1")
-
+     &"sed s/'gdTot;'/'gdTot=grad+gCL+gHL+geL+gecoll+gTL+grL;'/
+     &buf3> buf31")
+c
          write(*,*) c46
 c        call system("sed s/'gTL;'/'gTL+gDL,Xi[m],dn/n;'/
          call system("sed s/'gTL;'/'gTL+gDL,Xi[m],dn\/n;'/
-     &     /tmp/buff1> k"//c46)
-cremoving buff files not to interfair with other users
-         call system("rm -rf /tmp/buff")
-         call system("rm -rf /tmp/buff1")
+     &     buf31> k"//c46)
+cremoving buf3 files not to interfair with other users
+         call system("rm -f buf3")
+         call system("rm -f buf31")
       else
          write(*,*) 
      &  'Sorry, can not modify Xin??w.* like files with structures'
@@ -1546,7 +1618,7 @@ c after the following dump, to look at the map do this:
 c   /u/ngorelen/work/exe/contmap4u.py Out/contmap.u4m
       call dump24mat(gbiscl,gbiscl,gbimap,iberk,iberk,runid(i+1:i+9),
      &        trim(adjustl(runid(it:90))), egnid, nus)
-c
+c---------------------------------------------------------- loop to record RBQ arrays --------
 #ifdef _dev
 c     Use u4mat described in /u/ngorelen/SRC/u4mat.lyx
 c         old formatted file is dumped in dump_sat above
@@ -1554,35 +1626,53 @@ c
 c define indexes to the most of possible array indexes
 c change of plans: do this for the whole resonance, not at specific ipf
       ires=1
+c next lines not needed, moved to the top data defntx
 c    idlt=4 ! this is for 2*4+1 = 9 harmonics to be accounted for in RBQ analysis 
-      idlt=3 ! this is smaller but sufficient to get 7 harmonics for RBQ runs: nlc=7
+c      idlt=3 ! this is smaller but sufficient to get 7 harmonics for RBQ runs: nlc=7
+c      idlt=9 ! this is for => nlc = 2*9+1 = 19
+c      idlt=17 ! take this for tests
 c      idlt=12 ! this is for => nlc = 2*12+1 = 25
+c      idlt=17 is what is used for 176523 with nlc = 35 or saved as In/gxmn03w.6474E+01.u4mgxnonabs
       i1D=1                     !this is equidistant in velocity, which is for 1D case
       if(pk==0.5) then
          i1D=2                  !this is equidistant in energy, which is for 2D case
       endif
-      open(unit=18,file='gxm'//c46(3:15)//'.u4m',status='unknown')
+      c46(2:2)='m'
+      if(ai.eq.2.) c46(2:2)='b'
+      open(unit=18,file='gx'//c46(2:15)//'.u4m',status='unknown')
       write(18,*) 'gxm elements; runid ',runid(i+1:i+9),'; time ',
      & trim(adjustl(runid(it:90))),'; mode ',c46(3:15),';'
       write(18,*) 18                    !number of sequences (arrays) ; added imtae0 (meigfun)
       write(18,*) 0,23,';Sclrs;Nsclrs;' !0 for scalars (1st array); 21 for number of scalars
-      write(18,*) npf,nmu,mtl_m1,2,ntae,real(wtae),gamkom,            !  7 consts
+      write(18,*) npfc,nmuc,mtl_m1,2,ntae,real(wtae),gamkom,          !  7 consts
+#ifdef nbiE0xtra
+     &    idlt*2+1,vi*sqrt(nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.))
+     &    ,ai,zi,omstar,i1D,xhp,psitot,r0,valfv*10./r0,    !+10 consts
+#else
      &    idlt*2+1,vi,ai,zi,omstar,i1D,xhp,psitot,r0,valfv*10./r0,    !+10 consts
-     &     gdTot-grL-gcontL,gamkomflr,ximax,dbobmax,min,pk,           !+ 6 consts
-     &     ';npf,nmu,mtl_m1,2,ntae',
+#endif
+     &     gdTot-gcontL,gamkomflr,ximax,dbobmax,min,pk,           !+ 6 consts !only cont damp excluded
+     &     ';npfc,nmuc,mtl_m1,2,ntae',
      &     ',wtae[10^6/sec],gamkom,idlt2+1,vi,ai,zi,omstar,i1D,xhp',
-     &     ',psitot,rax,walfv[10^6/sec],gdTot,gghN,Xi[m],dB/B,minm,pk;' !first sequence/array of scalars
+     &  ',psitot,rax,walfv[10^6/sec],gdTot,gghNflr,Xi[m],dB/B,minm,pk;' !first sequence/array of scalars
 cnng16 
-      do imu=1,nmu
+      do imu=1,nmuc
 c reuse aeqv array to find the dominant resonances
          do is=1,2
             call zero(aeqv, nnres*(2*mtl+1))
-            do ipf=1,npf
+            ipfmx=0
+            ilmax=0
+            hhhmax=0.
+            do ipf=1,npfc
                do il=-mtl,mtl
-c identify double resonant location and put on the first place the resonance with largest resonant velocity
-                  if(vres_sat(ipf,imu,il,ires,is).lt.0.001) then
+c identfy doubl resonant location and put on the first place,i.e. resonance at largest resont velocity
+                  if(
+! vres_sat(ipf,imu,il,ires,is).gt.0.0.and.
+     & vres_sat(ipf,imu,il,2,is).gt.0.and.abs(vgam_sat(ipf,imu,il,2,is))
+     & .gt.abs(vgam_sat(ipf,imu,il,1,is))) then
+! redefining to ires=1 values from ires=2
                      vres_sat(ipf,imu,il,ires,is)=
-     &                    abs(vres_sat(ipf,imu,il,ires,is))
+     &               vres_sat(ipf,imu,il,2,is)
                      dwv_sat(ipf,imu,il,ires,is)=
      &                    dwv_sat(ipf,imu,il,2,is)
                      fdist_sat(ipf,imu,il,ires,is)=
@@ -1605,8 +1695,17 @@ c
                      wbwpi_sat(ipf,imu,il,ires,is)=
      &                    wbwpi_sat(ipf,imu,il,2,is)
                   endif
-                  hhhgam=abs(gam_sat(ipf,imu,il,ires,is))
+cnng21                  hhhgam=abs(gam_sat(ipf,imu,il,ires,is))
+cnng22
+                  hhhgam=gam_sat(ipf,imu,il,ires,is)
+                  if(abs(vres_sat(ipf,imu,il,ires+1,is)).gt.0.001)
+     &                   hhhgam=hhhgam+gam_sat(ipf,imu,il,ires+1,is)
                   aeqv(1,il)=aeqv(1,il)+hhhgam
+                  if(abs(hhhmax).lt.abs(hhhgam)) then
+                     hhhmax=hhhgam
+                     ilmax=il
+                     ipfmx=ipf
+                  endif
 commented in work/nova/d3d_153071Duarte/comments_controltests
 c                  if(imu.eq.8.and.il.eq.-4) print *,
 c     & ' --<< ipf,is,vres_sat,gam_sat',ipf,is,
@@ -1623,6 +1722,9 @@ c after integration check the maximum harmonic contribution
                   ihhh=il
                endif
             enddo               ! il loop search for max abs value
+            if(itest.eq.1) print *,'ihhh',ihhh,'hhh',hhh,'imu',imu,
+     &           'is',is,'ilmax',ilmax,'ipfmx',ipfmx,'hhhmax',hhhmax
+c            vres_sat(ipf,imu,il,ires,is)=vres_sat(ipf,imu,il,ires,is)
 c
 c using maximum m information define needed harmonics for each imu
             if(-mtl.ge.ihhh-idlt) then
@@ -1633,10 +1735,10 @@ c using maximum m information define needed harmonics for each imu
                indx_sat(imu,is)=-mtl
             else
                indx_sat(imu,is)=ihhh-idlt
-            endif
-c     define array for minimization of the Taylor expansion of the Omega
+            endif 
+c     define array for minimization of Taylor expansion of the Omega
             do il=indx_sat(imu,is),indx_sat(imu,is)+2*idlt
-               do ipf=1,npf
+               do ipf=1,npfc
                   do iv=1,nv
                      wresPfiV(ipf,iv)= -ntae*(wqvpr(iv,imu,ipf,is)
      &                    +wd(iv,imu,ipf,is))+real(wtae)
@@ -1647,27 +1749,35 @@ c
 c     find approximate polynomial expansions at the resonance along the P_phi direction 
 c     and along the slanted direction involving both v and P_phi
 c         this loop is entered each time for each harmonics and if there is a resonance
-               do ipf=1,npf
-                  if((vres_sat(ipf,imu,il,ires,is).gt.0.001).and.(ipf.lt
-     &          .npf).and.(vres_sat(ipf+1,imu,il,ires,is).gt.0.001))then
+               do ipf=1,npfc
+                if((vres_sat(ipf,imu,il,ires,is).gt.0.001).and.(ipf.lt
+     &         .npfc).and.(vres_sat(ipf+1,imu,il,ires,is).gt.0.001))then
                      ifail=0
+#ifdef _test1
+                        write(*,'(a,2e12.4,a,2e12.4,a,e12.4,4i4)')
+     ^                    'B',vres_sat(ipf,imu,il,ires,is),qpf(ipf),'('
+     ^                       ,dwp_sat(ipf,imu,il,ires,is)
+     ^                       ,dwpmnmz_sat(ipf,imu,il,ires,is),')'
+     ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),ipf ,imu
+     ^                       ,il,is
+#endif
                      if( i1D == 1 ) then
                         call wresminimize(wresPfiV(1,1),dwp_sat(ipf,imu,
      ^                       il,ires,is),dwpmnmz_sat(ipf,imu,il,ires,is)
-     ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),nmu,imu
-     ^                       ,npf,nv,qpf,v ,qpf(ipf),vres_sat(ipf,imu,il
+     ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),nmuc,imu
+     ^                      ,npfc,nv,qpf,v ,qpf(ipf),vres_sat(ipf,imu,il
      ^                       ,ires,is),  0.  ,wb(1,1,1,is),ifail)
                      else
 c                        if(ipf.eq.5.and.is.eq.1) pause
                         call wresminimize(wresPfiV(1,1),dwp_sat(ipf,imu,
      ^                       il,ires,is),dwpmnmz_sat(ipf,imu,il,ires,is)
-     ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),nmu,imu
-     ^                       ,npf,nv,qpf,v ,qpf(ipf),vres_sat(ipf,imu,il
+     ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),nmuc,imu
+     ^                      ,npfc,nv,qpf,v ,qpf(ipf),vres_sat(ipf,imu,il
      ^                       ,ires,is),omstar,wb(1,1,1,is),ifail)
                      endif
 #ifdef _test1
-                        write(*,'(2e12.4,a,2e12.4,a,e12.4,4i4)')
-     ^                       vres_sat(ipf,imu,il,ires,is),qpf(ipf),'('
+                        write(*,'(a,2e12.4,a,2e12.4,a,e12.4,4i4)')
+     ^                    'A',vres_sat(ipf,imu,il,ires,is),qpf(ipf),'('
      ^                       ,dwp_sat(ipf,imu,il,ires,is)
      ^                       ,dwpmnmz_sat(ipf,imu,il,ires,is),')'
      ^                       ,d2wpmnmz_sat(ipf,imu,il,ires,is),ipf ,imu
@@ -1677,76 +1787,108 @@ c                        if(ipf.eq.5.and.is.eq.1) pause
                enddo
             enddo               ! il loop over maximum harmonics contributions
          enddo                  ! is loop for sigma||
-      enddo                     ! is loop for mu
+      enddo                     ! is loop for mu irept_sat=1,nrept
+      if(nrept==2.and.irept_sat.eq.1) close(18)
+      enddo ! irept_sat loop
+
       write(18,*) 1,2,'; grps2; rgrid; vs nosurf;'
       write(18,*) nosurf,'; grps2;'
       write(18,*) grps2(1:nosurf)
       write(18,*) nosurf,'; rgrid;'
       write(18,*) rgrid(1:nosurf)
-      write(18,*) 2,2,'; indx_sat; eigfun; vs nmu,2 and vs nn,mt;'
-      write(18,*) nmu*2,'; indx;'
+      write(18,*) 2,2,'; indx_sat; eigfun; vs nmuc,2 and vs nn,mt;'
+      write(18,*) nmuc*2,'; indx;'
       write(18,*) indx_sat      !second sequence
 c saving the radial displacement for RBQ through a separate subroutine 
       call savexi(18) 
       write(18,*)  5,13,'; dwv_sat; vres_sat; fdist_sat; gam_sat; ',
      &'vgam_sat; tbres_sat; dwp_sat; dwpmnmz_sat; d2wpmnmz_sat; ',
-     &'hnub_sat; bgy_sat; wbwpi_sat; meigfun; vs npf,nmu,idlt*2+1,1,2;'
+     &'hnub_sat; bgy_sat; wbwpi_sat; meigfun; vs npf,nmuc,idlt*2+1,1,2;'
+      open(unit=19,file='buf.dat',status='unknown')
+      is=1
+      do ipf3=1,npfc
+      do imu3=1,nmuc
+      do is3=1,2
+      do il3=indx_sat(imu3,is3),indx_sat(imu3,is3)+2*idlt
+      do ires3=1,2
+      write(19,'(e18.12,5i4,i9)')vgam_sat(ipf3,imu3,il3,
+     & ires3,is3),ipf3,imu3,il3,ires3,is3,il3+31+(idlt*2+1)
+     &     *(is3-1+2*(imu3-1+nmuc*(ipf3-1+npfc*0)))
+      enddo
+      enddo
+      enddo
+      enddo
+      enddo
+      close(19)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; dwv;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; dwv;'
+      is=1
       write(18,*) ((((dwv_sat(ipf,imu,il,ires,is),il=
      &                       indx_sat(imu,is),indx_sat(imu,is)+2*idlt),
      &                       is=1,2),
-     &                       imu=1,nmu),
-     &                       ipf=1,npf)      !third and so on sequences
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; vres;'
+     &                       imu=1,nmuc),
+     &                       ipf=1,npfc)      !third and so on sequences
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; vres;'
+      is=1
       write(18,*)(((( vres_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; fdist;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; fdist;'
+      is=1
       write(18,*)((((fdist_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; gam;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; gam;'
+      is=1
       write(18,*)((((  gam_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; vgam;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; vgam;'
+      is=1
       write(18,*)(((( vgam_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; tbres'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; tbres'
+      is=1
       write(18,*)(((( tbres_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; dwp;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; dwp;'
+      is=1
       write(18,*)((((  dwp_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; dwpmnmz;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; dwpmnmz;'
+      is=1
       write(18,*)((((  dwpmnmz_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     ^     ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     ^     ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; d2wpmnmz;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; d2wpmnmz;'
+      is=1
       write(18,*)((((  d2wpmnmz_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     ^     ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     ^     ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; hnub;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; hnub;'
+      is=1
       write(18,*)(((( hnub_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
 c an averaged psi for d.f. computations
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; bgy;'
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; bgy;'
+      is=1
       write(18,*)((((  bgy_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; wbwpi;'
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; wbwpi;'
+      is=1
       write(18,*)((((  wbwpi_sat(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
-      write(18,*) npf*nmu*(2*idlt+1)*1*2,'; meigfun;'
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
+      write(18,*) npfc*nmuc*(2*idlt+1)*1*2,'; meigfun;'
+      is=1
       write(18,*)(((( meigfun(ipf,imu,il,ires,is),il=indx_sat(imu
-     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmu),ipf=1,npf)
+     &    ,is),indx_sat(imu,is)+2*idlt),is=1,2),imu=1,nmuc),ipf=1,npfc)
       close(18)
-c----------------------DF dump -----------------------
+c for _dev ----------------------DF dump ----------------------- 
 #endif
-c      idumpdf=0
+c will be done anyways
 c this directive just simiplifies the program by commenting one if statement to lower the used dimenstions
 #ifdef dumpdf
 c      idumpdf=1
@@ -1772,53 +1914,80 @@ c     otherwise be  close to the latest one
          ivc=max0(2,ivc)
          labtitle='distr.function'
 c         open(unit=18,file='df_type_'//tip(1:1)//'.bdat',form=
-c     &        'unformatted',status='unknown')
+c     &        'unformatted',status='unknown') ! make sure the same "unformated" is in reading routine
          open(unit=18,file='df_type_'//tip(1:1)//'.bdat',
      &        status='unknown')
-         imuax=indx(pmu(1),nmu,r0)
+         imuax=indx(pmu(1),nmuc,r0)
 c         write(*,*) '*** in growth imuax=',imuax
 c choose Pphi index at R_LFS corresponding to the maximum of mode amplitude
-         ratmax=ratpsii(isrfmax,psii,bii)
-         ipfmax=indx(qpf,npf,psii)
-c
+         ratmax=ratpsii(isrfmax,psii,bii,bif)  ! isrfmax is the tip of max AE amplitude; bii is B; psii is Psi at that location
+         ipfmax=indx(qpf,npfc,psii)         ! indx of Pfi at max ampltd
          do iv=1,nv
-            do ipf=1,npf
-               do imu=1,nmu
+            do ipf=1,npfc
+               do imu=1,nmuc
                   do is=1,2
                      sigm=1.
                      if(is.eq.2) sigm=-1.
-ckg                  write(*,*) iv,ipf,imu,is
-                     if(iv.eq.38.and.imu.eq.106.and.ipf.eq.81.and
-     &                    .is.eq.1)then
-                        continue
-                        wb(iv,imu,ipf,is)=wb(iv,imu,ipf,is)
-                     endif
+ckg                  write(*,*) iv,ipf,imu,is ! compute tau_bounce for distrfun
+c                           call xaverage(hhh1,beqv,iav,iter,eps,epsp
+c     &                       ,fo(1,imtae0,il,ires),imtae,ntae,ntgr,psma
+c     &                       ,psmi,qpfi,pmui,r0,rma,rmi,rvpar,rfres(1,1
+c     &                       ,ires,il),sigm,symm,t0,tb,vres(ires,il),z0
+c     &                       ,xhp,real(wtae),wb_res,0.,wvpr_res)
+c 
                      if(psiav(iv,imu,ipf,is).le.1..and.
      &                    psiav(iv,imu,ipf,is).gt.0.)then
-                        call distrfun(ai,b0*b0oo,dfal,dfalpdv,dfalpdpsi,
-     &                  dpga,eps,psiav(iv,imu,ipf,is),gam,hhh1,
-     &                  gbisch0(1),ihsps,
+                        call distrfun(ai,b0*b0oo,dfal,dfalpdv(1,1)
+     &                  ,dfalpdpsi,dpga,eps,psiav(iv,imu,ipf,is),gam,
+     &                  hhh1,gbisch0(1),ihsps,
      &                  iter,qpf(ipf),p0ga,pmu(imu),rvpar,sigm,tb,tip,
-     &                  v(iv),vi,v(nv),0.,z0,xhp,zi,dwbdpphi,wb_res,
-     &                       istart)
+#ifdef nbiE0xtra
+     &                       v(iv),vi*sqrt(
+     &          nbiE0xtra*1.298**2*2./(ai*vi**2*880.*2.)),v(ivmax)
+#else
+     &                  v(iv),vi,v(nv)
+#endif
+     &                       ,0.,z0,xhp,zi,dwbdpphi,wb_res,istart)
 c     hchirp(1)=coll.scat. in sec^-1
 c     kg                  write(*,*) 'grprpl',iv,ipf,imu,is,v(iv)
+                        if(ipf.eq.100.and.iv.eq.29.and.
+     &                       imu.gt.90.and.imu.lt.105) then
+                           write(*,*) 'grprpl',is,v(iv),
+     &              psiav(iv,imu,ipf,is),dfal,dfalpdv(1,1),dfalpdpsi,
+     &       tbres_sat(ipf,imu,il,ires,is),vres_sat(ipf,imu,il,ires,is)
+                        endif
+c     
                         fplot1(imu,iv,is)=dfal+fplot1(imu,iv,is)
                         if(iv.eq.ivc) fplot(ipf,imu,is)=dfal
-                        if(is.eq.2.and.iv.eq.ivc) fplot(ipf,imu,1)=fplot
-     &                       (ipf,imu,1)+fplot(ipf,imu,2)
+                    if(is.eq.2.and.iv.eq.ivc) fplot(ipf,imu,1)=(fplot
+     &                       (ipf,imu,1)+fplot(ipf,imu,2))*tb
 c     if(ipf.eq.ipfmax.and.(1.-pmu(imu)*bii/(r0*b0).gt.0.)
-                        if(ipf.eq.ipfmax)then 
+                        if(ipf.eq.ipfmax)then
                            if(is.eq.1)then
-                              imui=nmu-imu+1
+                              imui=nmuc-imu+1
                               isi=2
                            else
                               imui=imu
                               isi=1
                            endif
-                           gc2(imui,isi,nv)=sqrt(abs(1.-pmu(imu)*bii/
-     &                          (r0*b0)))*sigm
-                           fplot2(imui,isi,iv)=dfal
+c following is not right since psiav is used but it is from NOVA-K grid!
+c                           gc2(imui,isi,iv)=(1.-float(imu-1)/nmuc)*sigm
+c                           pmu_x=(1.-gc2(imui,isi,iv)**2)*ratmax
+c                           qpf_x=psii-sigm*xfow*xhp*v(iv)*sqrt(r0* ! -sqrt(r0*abs(-pmu(1)+r0))*xfow*xhp*v(nv)
+c     &                          abs(pmu_x-r0))*bif
+c                       call distrfun(ai,b0*b0oo,dfal,dfalpdv,dfalpdpsi,
+c     &                          dpga,eps,psiav(iv,imu,ipf,is),gam,hhh1,
+c     &                          gbisch0(1),ihsps,
+c     &                    iter,qpf_x,p0ga,pmu_x,rvpar,sigm,tb,tip,
+c     &                    v(iv),vi,v(nv),0.,z0,xhp,zi,dwbdpphi,wb_res,
+c     &                          istart)
+                           gc2(imui,isi,iv)=sqrt(abs(1.-pmu(imu)*bii/   ! since psiav is from grid, m.b. 
+     &                          (r0*b0)))*sigm                          ! this expression ONLY
+                           fplot2(imui,isi,iv)=dfal     ! this is taken at ipfmax 
+c                           if(iv.eq.35) then
+c                              print *,isi,imu,imui,gc2(imui,isi,iv),
+c     & qpf_x,pmu_x,'df',dfal,psiav(iv,imu,ipf,is)
+c                           endif
                         endif
                         f_coarse(iv,imu,ipf,is)=dfal
                         hnub_coarse(iv,imu,ipf,is)=abs(pmu(imu)/
@@ -1835,53 +2004,60 @@ c     &                       ((qpf(ipf)-psiav(iv,imu,ipf,is)))**2              
          enddo
          continue
          ipfmax=ipfmax
-         write(18,*) npf,nmu,nv,2
+         write(18,*) npfc,nmuc,nv,2
          write(18,*) r0,v(ivc),v(nv),vi,ratmax,psii,valfv
          write(18,*) qpf
          write(18,*) pmu
          write(18,*) v
-         write(18,*) fplot
-         write(18,*) fplot1
+         write(18,*) fplot   !(ipf,imu,is)
+         write(18,*) fplot1  !(imu,iv,is)
 c output v||/v for the distribution function (next line) taken at the LFS point 
-         write(18,*) gc2
-         write(18,*) fplot2
+         write(18,*) gc2     ! (imui,isi,nv)
+         write(18,*) fplot2  ! (imui,is,iv)
          close(18)
-cnng14 we dump the coarse DF for further use in the LBQ code. Note that
+cnng14 we dump the coarse DF for further use in the RBQ code. Note that
 cnn       this should work for any mode at a given transp run, which we 
 cnn       identify with the id written at the top of u4m file && idumpdf==1
 cnng14 dump the DF array
          open(18,file='dfRbq.u4m',status='unknown')
          write(18,*) 'DF; runid ',runid(i+1:i+9),'; time ',
      &        trim(adjustl(runid(it:90))),';'
-         write(18,*) '7'
-         write(18,*) 1,5,'; qpf; pmu; v; conde; condi;'
-         write(18,*) npf,' ; qpf;'
-         write(18,*) (qpf(i),i=1,npf)
-         write(18,*) nmu,' ; pmu;'
-         write(18,*) (pmu(i),i=1,nmu)
+         write(18,*) '12'
+         write(18,*) 1,8,
+     &        '; qpf; pmu; v; conde; condi; dence; dencD; dencT;'
+         write(18,*) npfc,' ; qpf;'
+         write(18,*) (qpf(i),i=1,npfc)
+         write(18,*) nmuc,' ; pmu;'
+         write(18,*) (pmu(i),i=1,nmuc)
          write(18,*) nv,' ; v; pk=',pk
          write(18,*) (v(i),i=1,nv)
          write(18,*) nosurf,' ; conde;'
          write(18,*) (condec(i),i=1,nosurf)
          write(18,*) nosurf,' ; condi;'
          write(18,*) (condic(i),i=1,nosurf)
+         write(18,*) nosurf,' ; dence;'
+         write(18,*) (denc(i,1),i=1,nosurf)
+         write(18,*) nosurf,' ; dencD;'
+         write(18,*) (denc(i,2),i=1,nosurf)
+         write(18,*) nosurf,' ; dencT;'
+         write(18,*) (denc(i,3),i=1,nosurf)
          write(18,*) '4 4 ; df_coarse; wbounce; psiav; nusct; '                          ! 4 dmsns & 4 N of arrays
-         write(18,*) npf*nmu*nv*2,'; df_coarse [cm^-3];'
-         write(18,*) ((((f_coarse(iv,imu,ipf,is),iv=1,nv),imu=1,nmu)
-     &        ,ipf=1,npf),is=1,2)
-c         write(18,*) npf*nmu*nv*2,'; phidot|| [10^6 sec^-1];'
+         write(18,*) npfc*nmuc*nv*2,'; df_coarse [cm^-3];'
+         write(18,*) ((((f_coarse(iv,imu,ipf,is),iv=1,nv),imu=1,nmuc)
+     &        ,ipf=1,npfc),is=1,2)
+c         write(18,*) npfc*nmu*nv*2,'; phidot|| [10^6 sec^-1];'
 c         write(18,*) ((((wqvpr(iv,imu,ipf,is+wd(iv,imu,ipf,is)),iv=1,nv)
-c     &        ,imu=1,nmu),ipf=1,npf),is=1,2)
-         write(18,*) npf*nmu*nv*2,'; wbounce [10^6 sec^-1];'
-         write(18,*) ((((wb(iv,imu,ipf,is),iv=1,nv),imu=1,nmu)
-     &        ,ipf=1,npf),is=1,2)
-         write(18,*) npf*nmu*nv*2,'; psiav ;'
-         write(18,*) ((((psiav(iv,imu,ipf,is),iv=1,nv),imu=1,nmu)
-     &        ,ipf=1,npf),is=1,2)
-         write(18,*) npf*nmu*nv*2,'; nusct sec^-1 * (pfi / chi)^2;'
-         write(18,*) ((((hnub_coarse(iv,imu,ipf,is),iv=1,nv),imu=1,nmu)
-     &        ,ipf=1,npf),is=1,2)
-cnng15  for LBQ we also need more information, such as drift frequencies going into
+c     &        ,imu=1,nmu),ipf=1,npfc),is=1,2)
+         write(18,*) npfc*nmuc*nv*2,'; wbounce [10^6 sec^-1];'
+         write(18,*) ((((wb(iv,imu,ipf,is),iv=1,nv),imu=1,nmuc)
+     &        ,ipf=1,npfc),is=1,2)
+         write(18,*) npfc*nmuc*nv*2,'; psiav ;'
+         write(18,*) ((((psiav(iv,imu,ipf,is),iv=1,nv),imu=1,nmuc)
+     &        ,ipf=1,npfc),is=1,2)
+         write(18,*) npfc*nmuc*nv*2,'; nusct sec^-1 * (pfi / chi)^2;'
+         write(18,*) ((((hnub_coarse(iv,imu,ipf,is),iv=1,nv),imu=1,nmuc)
+     &        ,ipf=1,npfc),is=1,2)
+cnng15  for RBQ we also need more information, such as drift frequencies going into
 cnn         the resonance condition 
 c                                 wqvpr(iv,imu,ipf
 c     &                             ,is),wd(iv,imu,ipf,is),wb(iv,imu,ipf
@@ -1899,7 +2075,7 @@ ckg analytical estimates of fast ion contribution to m=1/n=1 stabilization
       endif
 c      if(im1.eq.1.or.im1.eq.0) return
       if(im1.eq.3.or.im1.eq.1.or.im1.eq.0) return
-      do i=1,npf
+      do i=1,npfc
 c passing particles only without FLR and cutoff
          gamintpfi(i,1,1)=abs(gamintpfi(i,1,1)-gtrap(i,1)+
      &        gamintpfi(i,1,2))*2.*sqrt(abs(qpf(i)))
@@ -1913,16 +2089,16 @@ c trapped particles only without FLR and cutoff
       enddo
 c
 c passing particles only without FLR and cutoff
-      call twodgraf(qpf,gamintpfi(1,1,1),npf,1,col(1),pat(1),'white'
+      call twodgraf(qpf,gamintpfi(1,1,1),npfc,1,col(1),pat(1),'white'
      $     ,2,'Passing_w/o_cutoff','sqrt(P_phi)'
      &     ,'d(gam/om)/dsqrt(P_phi)','FOW',6,6,1,wd,0)
       call frame(0)
 c trapped particles only without FLR and cutoff
-      call twodgraf(qpf,gtrap(1,1),npf,1,col(1),pat(1),'white'
+      call twodgraf(qpf,gtrap(1,1),npfc,1,col(1),pat(1),'white'
      $     ,2,'Trapped_w/o_cutoff','sqrt(P_phi)'
      &     ,'d(gam/om)/dsqrt(P_phi)','FOW',6,6,1,wd,0)
       call frame(0)
-      do i=1,npf
+      do i=1,npfc
          gamintpfi(i,1,1)=abs(gamintpfi(i,3,1)-gtrap(i,3)+
      &        gamintpfi(i,3,2))*2.*abs(qpf(i)*gamkomhlp)
          gtrap(i,1)=abs(gtrap(i,3))*2.*abs(qpf(i)*gamkomhlp)
@@ -1931,29 +2107,29 @@ c trapped particles only without FLR and cutoff
      &    'r'.or.tip.eq.'x')return
 c
 c passing particles only without FLR at cutoff
-      call twodgraf(qpf,gamintpfi(1,1,1),npf,1,col(1),pat(1),'white'
+      call twodgraf(qpf,gamintpfi(1,1,1),npfc,1,col(1),pat(1),'white'
      $     ,2,'Passing_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
      &     ,'FOW',6,6,1,wd,0)
       call frame(0)
 c trapped particles only without FLR at cutoff
-      call twodgraf(qpf,gtrap(1,1),npf,1,col(1),pat(1),'white'
+      call twodgraf(qpf,gtrap(1,1),npfc,1,col(1),pat(1),'white'
      $     ,2,'Trapped_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
      &     ,'FOW',6,6,1,wd,0)
       call frame(0)
 c      return
-      do i=1,npf
+      do i=1,npfc 
          gamintpfi(i,1,1)=abs(gamintpfi(i,5,1)-gtrap(i,5)+
      &        gamintpfi(i,5,2))*2.*abs(qpf(i))
          gtrap(i,1)=abs(gtrap(i,5))*2.*abs(qpf(i))
       enddo
 c
 c passing particles only without FLR after cutoff
-      call twodgraf(qpf,gamintpfi(1,1,1),npf,1,col(1),pat(1),'white'
+      call twodgraf(qpf,gamintpfi(1,1,1),npfc,1,col(1),pat(1),'white'
      $     ,2,'Passing_za_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
      &     ,'FOW',6,6,1,wd,0)
       call frame(0)
 c trapped particles only without FLR after cutoff
-      call twodgraf(qpf,gtrap(1,1),npf,1,col(1),pat(1),'white'
+      call twodgraf(qpf,gtrap(1,1),npfc,1,col(1),pat(1),'white'
      $     ,2,'Trapped_za_cutoff','sqrt(P_phi)','d(gam/om)/dsqrt(P_phi)'
      &     ,'FOW',6,6,1,wd,0)
       bmax=0.

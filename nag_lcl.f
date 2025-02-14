@@ -520,6 +520,8 @@ C     .. External Subroutines ..
 C     .. Intrinsic Functions ..
       INTRINSIC               ABS, MOD
 C     .. Executable Statements ..
+cnng21
+      return
       IF (IERROR.NE.0) THEN
 C        Abnormal exit from calling routine
          IF (IFAIL.EQ.-1 .OR. IFAIL.EQ.0 .OR. IFAIL.EQ.-13 .OR.
@@ -530,14 +532,15 @@ C           Noisy exit
                CALL X04BAF(NERR,REC(I))
    20       CONTINUE
             IF (IFAIL.NE.-13) THEN
-               WRITE (MESS,FMT=99999) SRNAME, IERROR
+cnng21
+c               WRITE (MESS,FMT=99999) SRNAME, IERROR
                CALL X04BAF(NERR,MESS)
                IF (ABS(MOD(IFAIL,10)).NE.1) THEN
 C                 Hard failure
-                  CALL X04BAF(NERR,
-     *                     ' ** NAG hard failure - execution terminated'
-     *                        )
-                  CALL P01ABZ
+cnng21                  CALL X04BAF(NERR,
+c     *                     ' ** NAG hard failure - execution terminated'
+c     *                        )
+cnng21                  CALL P01ABZ
                ELSE
 C                 Soft failure
                   CALL X04BAF(NERR,
@@ -564,7 +567,9 @@ C     implementation-dependent routine to display a message and/or
 C     to abort the program.
 C     *************************************************************
 C     .. Executable Statements ..
-      STOP
+cnng21
+      return
+c      STOP
       END
 c***********************************************************************
       DOUBLE PRECISION FUNCTION S14AAF(X,IFAIL)
@@ -774,12 +779,13 @@ C
 c***********************************************************************
       DOUBLE PRECISION FUNCTION X02AJF()
 C     MARK 12 RELEASE. NAG COPYRIGHT 1986.
-C
+C returns machine precision, i.e. smallest number
 C     RETURNS  (1/2)*B**(1-P)  IF ROUNDS IS .TRUE.
 C     RETURNS  B**(1-P)  OTHERWISE
 C
       DOUBLE PRECISION X02CON
-      DATA X02CON /Z'3CA0000000000001' /
+c      DATA X02CON /Z'3CA0000000000001' /
+      X02CON=real(Z'3CA0000000000001')
 C     .. Executable Statements ..
       X02AJF = X02CON
       RETURN
@@ -792,7 +798,8 @@ C     RETURNS  (1 - B**(-P)) * B**EMAX  (THE LARGEST POSITIVE MODEL
 C     NUMBER)
 C
       DOUBLE PRECISION X02CON
-      DATA X02CON /Z'7FEFFFFFFFFFFFFF' /
+c      DATA X02CON /Z'7FEFFFFFFFFFFFFF' /
+       X02CON=real(Z'7FEFFFFFFFFFFFFF')
 C     .. Executable Statements ..
       X02ALF = X02CON
       RETURN
