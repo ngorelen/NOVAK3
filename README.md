@@ -1,4 +1,4 @@
-Simple instructions on how to run NOVA-K postprocessor (never complete)
+Simple instructions on how to run NOVA-C (former NOVA-K) postprocessor which is version 3.
 Some typical problems with NOVA are attempted to be described in the
 file uFAQ in the source directory.
 From v.3.0 FLR are accounted for through k_theta (dominant) and k_radial 
@@ -8,10 +8,10 @@ contributions to the Bessel function.
 MY Drive/Epresearch/NOVAReadme TO BE SYNCED WITH THIS FILE.
 Please use that Readme for all edits.)
 
-1. compiling the NOVA-K code (skip to 2. if you don't need it)
+1. compiling the NOVA-C code (skip to 2. if you don't need it)
    from your working directory run this:
    gmake -f /u/ngorelen/SRC/NOVAK3/mkorb
-   if you need to use some capabilities of NOVA-K which are under 
+   if you need to use some capabilities of NOVA-C which are under 
    development add a extra flag 
    gmake -f /u/ngorelen/SRC/NOVAK3/mkorb DB="-D _dev" 
    but some other capabilities can be turn on, read "mkorb" comments for details
@@ -24,7 +24,7 @@ Please use that Readme for all edits.)
 2. I assume that the mode structure file exists. In my case this is
    egn03w.1438E+01. This is the default case from NOVA run. Look at
    Readme file of NOVA for details on how to get this mode structure
-   file. Link the mode structure file to the standard file name NOVA-K
+   file. Link the mode structure file to the standard file name NOVA-C
    uses. !!! dimensions are not recorded into eigenf! Must be consistent 
    with the production lengths! such as in clichlmax: minm_1=-3,maxm_1=20 !!!
    
@@ -38,14 +38,14 @@ Please use that Readme for all edits.)
 	after running gotae run the python script like this
 	/u/ngorelen/work/exe/contmap4u.py Out/contmap.u4m
 
-after this it generates the default parameter file for NOVA-K, which is
+after this it generates the default parameter file for NOVA-C, which is
 NOVAK_param
 
 other parameter file is clich1b; it contains mass, charge of EPs; in
 support of RBQ we keep there CONDEF, CONDE, CONDI, one fluid eff,
 electr, ion thermal ion conductivities.
 
-It contains all the information required to run the the NOVA-K. Check
+It contains all the information required to run the the NOVA-C. Check
 this file change the appropriate parameters to what you need (it has
 comments) and rerun ./gotae to get the stability results.
 
@@ -259,4 +259,3 @@ c                     10is a special run for EP redistribution due to TAE activi
     only for Boozer equilibrium coordinates. After you find the mode that
     file will be created. And after that and NOVA-C run this file will be
     updated with the additional information.
-
