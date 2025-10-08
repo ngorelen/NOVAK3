@@ -1,4 +1,6 @@
-Simple instructions on how to run NOVA-C (former NOVA-K) postprocessor which is version 3.
+Simple instructions on how to run NOVA-C (former NOVA-K) postprocessor 
+which is version 3. NOVA-**C** stands for the **C**onstant of motion
+extension of the kinetic version of NOVA ideal MHD code. 
 Some typical problems with NOVA are attempted to be described in the
 file uFAQ in the source directory.
 From v.3.0 FLR are accounted for through k_theta (dominant) and k_radial 
